@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { getPomodoroRemainingSeconds } from '@/lib/pomodoro'
-import { POMODORO_ALARM_OPTIONS, WEB_AUTOMATIC_ALARM_AUDIO_ENABLED } from '@/lib/pomodoro-audio'
+import { POMODORO_ALARM_END_EVENT, POMODORO_ALARM_OPTIONS, POMODORO_ALARM_START_EVENT, WEB_AUTOMATIC_ALARM_AUDIO_ENABLED } from '@/lib/pomodoro-audio'
 import {
   getNotificationPermission,
   getPomodoroNotificationIdentity,
@@ -216,11 +216,11 @@ export function usePomodoroController(): PomodoroController {
     const alarmIdentity = `${session?.mode}:${session?.startedAt}:${session?.endsAt ?? 'unknown'}:${selectedAlarm.src}`
     if (alarmAnnouncementRef.current !== alarmIdentity) {
       alarmAnnouncementRef.current = alarmIdentity
-      window.dispatchEvent(new Event('pomodoro-alarm-start'))
+      window.dispatchEvent(new Event(POMODORO_ALARM_START_EVENT))
     }
 
     void playAlarmAudio(selectedAlarm.src)
-  }, [alarmActive, data.settings.pomodoro.soundEnabled, permissionSetupStatus, playAlarmAudio, selectedAlarm.src, session?.completedAt, session?.endsAt, stopAlarmAudio])
+  }, [alarmActive, data.settings.pomodoro.soundEnabled, permissionSetupStatus, playAlarmAudio, selectedAlarm.src, session?.completedAt, session?.endsAt, session?.mode, session?.startedAt, stopAlarmAudio])
 
   useEffect(() => {
     if (!alarmActive) {
@@ -259,6 +259,7 @@ export function usePomodoroController(): PomodoroController {
   }
 
   function handleReset() {
+    if (alarmActive) window.dispatchEvent(new Event(POMODORO_ALARM_END_EVENT))
     stopAlarmAudio()
     resetPomodoro()
   }
@@ -296,6 +297,7 @@ export function usePomodoroController(): PomodoroController {
     if (!session || !alarmActive) return
 
     stopAlarmAudio()
+    window.dispatchEvent(new Event(POMODORO_ALARM_END_EVENT))
     completePomodoroSession(session.mode, session.durationMinutes)
   }
 
@@ -303,6 +305,7 @@ export function usePomodoroController(): PomodoroController {
     if (!session || !alarmActive) return
 
     stopAlarmAudio()
+    window.dispatchEvent(new Event(POMODORO_ALARM_END_EVENT))
     snoozePomodoro(data.settings.pomodoro.defaultSnoozeMinutes)
   }
 

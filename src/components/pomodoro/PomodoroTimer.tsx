@@ -1,5 +1,5 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
-import { Music2, Pause, Play, RotateCcw, Settings, VolumeX, X } from 'lucide-react'
+import { Music2, Pause, Play, RotateCcw, Settings, Volume2, VolumeX, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -159,25 +159,12 @@ function TomatoDial({ duration, indicatorAngle, label, timerSeconds, onDurationC
   )
 }
 
-export function PomodoroLauncher({ controller, ambience, open, onClick, onEnableSound }: { controller: PomodoroController; ambience: AmbienceController; open: boolean; onClick: () => void; onEnableSound: () => void }) {
-  const soundBlocked = controller.audioBlocked || ambience.audioBlocked
+export function PomodoroLauncher({ controller, audioBlocked, open, onClick, onEnableSound }: { controller: PomodoroController; audioBlocked: boolean; open: boolean; onClick: () => void; onEnableSound: () => void }) {
+  const soundBlocked = controller.audioBlocked || audioBlocked
 
   return (
     <div className="fixed right-4 bottom-6 z-50 sm:right-7 sm:bottom-8">
-      <div className="flex flex-col items-center gap-3">
-        <Button
-          type="button"
-          size="icon-lg"
-          variant="ghost"
-          data-ambience-toggle
-          aria-label={ambience.isPlaying ? 'Turn ambience off' : 'Turn ambience on'}
-          className="size-14 shrink-0 rounded-full bg-[var(--pomodoro-control)] text-[var(--primary-foreground)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] transition-transform hover:scale-105 hover:bg-[var(--pomodoro-control)]/90 hover:text-[var(--primary-foreground)]"
-          disabled={!ambience.available}
-          onClick={ambience.toggle}
-        >
-          {ambience.isPlaying ? <VolumeX aria-hidden="true" /> : <Music2 aria-hidden="true" />}
-        </Button>
-        <div className="relative">
+      <div className="relative">
           {!open && (soundBlocked || controller.alarmActive) ? (
             <div className="absolute top-1/2 right-full mr-2 flex -translate-y-1/2 items-center gap-2" aria-label="Pomodoro audio and alarm actions">
               {soundBlocked && <Button type="button" size="sm" variant="outline" onClick={onEnableSound}>Enable sound</Button>}
@@ -215,13 +202,12 @@ export function PomodoroLauncher({ controller, ambience, open, onClick, onEnable
               <TomatoCalyx className="top-[13%] h-[38%] w-[68%]" />
             </span>
           </Button>
-        </div>
       </div>
     </div>
   )
 }
 
-export function PomodoroTimer({ controller, onClose, onOpenSettings }: { controller: PomodoroController; onClose: () => void; onOpenSettings: () => void }) {
+export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings }: { controller: PomodoroController; ambience: AmbienceController; onClose: () => void; onOpenSettings: () => void }) {
   const { mode, duration, preciseDuration, isRunning, hasStarted, remainingSeconds, indicatorDurationMinutes, alarmActive, setDurationValue, handleModeChange, handleReset, handlePlayPause, handlePreciseDurationChange, commitPreciseDuration, stopAlarm, snoozeAlarm } = controller
   const indicatorAngle = hasStarted ? getCountdownAngle(remainingSeconds, indicatorDurationMinutes) : getIndicatorAngle(duration)
 
@@ -251,6 +237,19 @@ export function PomodoroTimer({ controller, onClose, onOpenSettings }: { control
           </Button>
           <Button type="button" size="icon-sm" variant="ghost" aria-label="Open Pomodoro settings" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" onClick={onOpenSettings}>
             <Settings aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={!ambience.available ? 'Ambience unavailable' : !ambience.isPlaying ? 'Play ambience' : ambience.isMuted ? 'Unmute ambience' : 'Mute ambience'}
+            aria-pressed={ambience.isPlaying && !ambience.isMuted}
+            className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50"
+            disabled={!ambience.available}
+            onClick={ambience.toggle}
+            title={!ambience.available ? 'No ambience selected' : !ambience.isPlaying ? 'Play ambience' : ambience.isMuted ? 'Unmute ambience' : 'Mute ambience'}
+          >
+            {!ambience.isPlaying ? <Music2 aria-hidden="true" /> : ambience.isMuted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
           </Button>
         </div>
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--pomodoro-muted)]">Pomodoro</p>

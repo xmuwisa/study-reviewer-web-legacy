@@ -49,7 +49,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
-import { POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
+import { POMODORO_ALARM_OPTIONS, POMODORO_ALARM_START_EVENT, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
 import { POMODORO_PERMISSION_SETUP_EVENT } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 import { cn } from '@/lib/utils'
@@ -1458,8 +1458,8 @@ export function SettingsPage() {
       setActivePreview(null)
     }
 
-    window.addEventListener('pomodoro-alarm-start', stopPreviewForAlarm)
-    return () => window.removeEventListener('pomodoro-alarm-start', stopPreviewForAlarm)
+    window.addEventListener(POMODORO_ALARM_START_EVENT, stopPreviewForAlarm)
+    return () => window.removeEventListener(POMODORO_ALARM_START_EVENT, stopPreviewForAlarm)
   }, [])
 
   function savePreferences(patch: Parameters<typeof updateSettings>[0], message = 'Preference saved locally.') {
@@ -1592,9 +1592,9 @@ export function SettingsPage() {
 
         <Card className="bg-card/80">
           <CardHeader className="p-6 pb-4">
-            <SectionLabel>Study sessions</SectionLabel>
-            <CardTitle className="mt-2 text-2xl">Study mode and ambience</CardTitle>
-            <CardDescription className="leading-relaxed">Choose how new topic study sessions begin and whether ambience starts while you study.</CardDescription>
+            <SectionLabel>Study mode</SectionLabel>
+            <CardTitle className="mt-2 text-2xl">Study mode</CardTitle>
+            <CardDescription className="leading-relaxed">Choose how new topic study sessions begin.</CardDescription>
           </CardHeader>
           <CardContent className="p-6 pt-0">
             <FieldGroup>
@@ -1610,33 +1610,6 @@ export function SettingsPage() {
                   <ToggleGroupItem value="flashcard" className="flex-1 sm:flex-none">Flashcards</ToggleGroupItem>
                 </ToggleGroup>
               </Field>
-              <div className="grid gap-5 lg:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="default-ambience">Default ambience</FieldLabel>
-                  <div className="flex items-center gap-2">
-                    <Select value={settings.pomodoro.defaultAmbience} onValueChange={updatePomodoroAmbience}>
-                      <SelectTrigger id="default-ambience" className="min-w-0 flex-1 bg-background/60">
-                        <SelectValue>{selectedAmbience.label}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {POMODORO_AMBIENCE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" variant="outline" size="icon-sm" disabled={!selectedAmbience.src} onClick={() => previewAudio('ambience', selectedAmbience.src)} aria-label={activePreview === 'ambience' ? 'Pause ambience preview' : 'Play ambience preview'} title={activePreview === 'ambience' ? 'Pause ambience preview' : 'Play ambience preview'}>
-                      {activePreview === 'ambience' ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-                    </Button>
-                  </div>
-                </Field>
-                {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4 lg:h-full">
-                  <FieldContent>
-                    <FieldTitle>Automatically play ambience</FieldTitle>
-                    <FieldDescription>Start the selected ambience when Study Reviewer opens.</FieldDescription>
-                  </FieldContent>
-                  <Toggle pressed={settings.pomodoro.autoPlayAmbience} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoPlayAmbience: pressed } })} aria-label="Automatically play ambience" size="sm">{settings.pomodoro.autoPlayAmbience ? 'On' : 'Off'}</Toggle>
-                </Field>}
-              </div>
             </FieldGroup>
           </CardContent>
         </Card>
@@ -1771,6 +1744,33 @@ export function SettingsPage() {
                 </FieldContent>
                 <Toggle pressed={settings.pomodoro.autoStart} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoStart: pressed } })} aria-label="Start the next interval automatically" size="sm">{settings.pomodoro.autoStart ? 'On' : 'Off'}</Toggle>
               </Field>
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="default-ambience">Default ambience</FieldLabel>
+                  <div className="flex items-center gap-2">
+                    <Select value={settings.pomodoro.defaultAmbience} onValueChange={updatePomodoroAmbience}>
+                      <SelectTrigger id="default-ambience" className="min-w-0 flex-1 bg-background/60">
+                        <SelectValue>{selectedAmbience.label}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {POMODORO_AMBIENCE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <Button type="button" variant="outline" size="icon-sm" disabled={!selectedAmbience.src} onClick={() => previewAudio('ambience', selectedAmbience.src)} aria-label={activePreview === 'ambience' ? 'Pause ambience preview' : 'Play ambience preview'} title={activePreview === 'ambience' ? 'Pause ambience preview' : 'Play ambience preview'}>
+                      {activePreview === 'ambience' ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+                    </Button>
+                  </div>
+                </Field>
+                {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4 lg:h-full">
+                  <FieldContent>
+                    <FieldTitle>Automatically play ambience</FieldTitle>
+                    <FieldDescription>Play your selected ambience when you open Pomodoro.</FieldDescription>
+                  </FieldContent>
+                  <Toggle pressed={settings.pomodoro.autoPlayAmbience} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoPlayAmbience: pressed } })} aria-label="Automatically play ambience" size="sm">{settings.pomodoro.autoPlayAmbience ? 'On' : 'Off'}</Toggle>
+                </Field>}
+              </div>
               {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
                 <FieldContent>
                   <FieldTitle>Sound alerts</FieldTitle>

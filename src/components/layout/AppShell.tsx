@@ -117,6 +117,8 @@ export function AppShell() {
   const { data, storageNotice, clearStorageNotice, updateSettings } = useStudyData()
   const pomodoro = usePomodoroController()
   const ambience = useAmbienceController()
+  const { initializeAudio: initializePomodoroAudio } = pomodoro
+  const { audioBlocked: ambienceAudioBlocked, enableAudio: enableAmbienceAudio, initializeAudio: initializeAmbienceAudio, open: openAmbience } = ambience
   const [isPomodoroOpen, setIsPomodoroOpen] = useState(false)
   const [isPermissionSetupOpen, setIsPermissionSetupOpen] = useState(() => data.settings.pomodoro.permissionSetupStatus === 'pending')
   const [isPermissionSetupBusy, setIsPermissionSetupBusy] = useState(false)
@@ -142,7 +144,7 @@ export function AppShell() {
 
     setIsPermissionSetupBusy(true)
     const [audioResults, notificationResult] = await Promise.all([
-      Promise.all([pomodoro.initializeAudio(), ambience.initializeAudio()]),
+      Promise.all([initializePomodoroAudio(), initializeAmbienceAudio()]),
       requestNotificationPermission(),
     ])
     const audioResult = combineAudioInitializationResults(...audioResults)
@@ -153,12 +155,17 @@ export function AppShell() {
     setPermissionSetupFeedback(saved
       ? getPermissionSetupFeedback(audioResult, notificationResult)
       : { kind: 'error', message: 'Setup finished, but the setup choice could not be saved locally.' })
-  }, [ambience, closePermissionSetup, isPermissionSetupBusy, pomodoro, updateSettings])
+  }, [closePermissionSetup, initializeAmbienceAudio, initializePomodoroAudio, isPermissionSetupBusy, updateSettings])
 
   const handleEnableSound = useCallback(async () => {
-    const audioResults = await Promise.all([pomodoro.initializeAudio(), ambience.initializeAudio()])
+    const audioResults = await Promise.all([initializePomodoroAudio(), enableAmbienceAudio()])
     setPermissionSetupFeedback(getAudioRetryFeedback(combineAudioInitializationResults(...audioResults)))
-  }, [ambience, pomodoro])
+  }, [enableAmbienceAudio, initializePomodoroAudio])
+
+  const handlePomodoroToggle = useCallback(() => {
+    if (!isPomodoroOpen && !pomodoro.alarmActive) openAmbience()
+    setIsPomodoroOpen((open) => !open)
+  }, [isPomodoroOpen, openAmbience, pomodoro.alarmActive])
 
   const handlePermissionSetupOpenChange = useCallback((open: boolean) => {
     if (open) {
@@ -196,7 +203,6 @@ export function AppShell() {
     function handleOutsidePointerDown(event: PointerEvent) {
       if (!(event.target instanceof Element)) return
       if (event.target.closest('[data-pomodoro-launcher]')) return
-      if (event.target.closest('[data-ambience-toggle]')) return
       if (pomodoroPanelRef.current?.contains(event.target)) return
       setIsPomodoroOpen(false)
     }
@@ -239,9 +245,9 @@ export function AppShell() {
       </main>
       <PomodoroLauncher
         controller={pomodoro}
-        ambience={ambience}
+        audioBlocked={ambienceAudioBlocked}
         open={isPomodoroOpen}
-        onClick={() => setIsPomodoroOpen((open) => !open)}
+        onClick={handlePomodoroToggle}
         onEnableSound={handleEnableSound}
       />
       <div
@@ -253,7 +259,7 @@ export function AppShell() {
         )}
       >
           <div className="flex min-h-full w-full items-start justify-center lg:block lg:min-h-0 lg:flex-1 lg:overflow-x-hidden lg:overflow-y-auto lg:rounded-[2rem]">
-            <PomodoroTimer controller={pomodoro} onClose={() => setIsPomodoroOpen(false)} onOpenSettings={() => {
+            <PomodoroTimer controller={pomodoro} ambience={ambience} onClose={() => setIsPomodoroOpen(false)} onOpenSettings={() => {
               setIsPomodoroOpen(false)
               navigate('/settings#pomodoro-settings')
             }} />

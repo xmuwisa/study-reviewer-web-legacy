@@ -1,15 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { POMODORO_AMBIENCE_OPTIONS, WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED } from '@/lib/pomodoro-audio'
+import {
+  POMODORO_ALARM_END_EVENT,
+  POMODORO_ALARM_START_EVENT,
+  POMODORO_AMBIENCE_OPTIONS,
+  WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED,
+} from '@/lib/pomodoro-audio'
 import type { AudioInitializationResult } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 
+type AmbienceAlarmSnapshot = {
+  muted: boolean
+  source: string
+  wasPlaying: boolean
+}
+
 export type AmbienceController = {
   isPlaying: boolean
+  isMuted: boolean
   available: boolean
   audioBlocked: boolean
   toggle: () => void
+  open: () => void
   initializeAudio: () => Promise<AudioInitializationResult>
+  enableAudio: () => Promise<AudioInitializationResult>
 }
 
 export function useAmbienceController(): AmbienceController {
@@ -18,6 +32,7 @@ export function useAmbienceController(): AmbienceController {
   const sourceRef = useRef<string | null>(null)
   const retryCleanupRef = useRef<(() => void) | null>(null)
   const playbackPromiseRef = useRef<Promise<boolean> | null>(null)
+  const alarmSnapshotRef = useRef<AmbienceAlarmSnapshot | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioBlocked, setAudioBlocked] = useState(false)
   const selectedAmbience = POMODORO_AMBIENCE_OPTIONS.find((option) => option.value === data.settings.pomodoro.defaultAmbience) ?? POMODORO_AMBIENCE_OPTIONS[0]
@@ -42,23 +57,30 @@ export function useAmbienceController(): AmbienceController {
     setAudioBlocked(false)
   }, [clearRetry])
 
-  const startAudio = useCallback((nextSource: string) => {
+  const startAudio = useCallback((nextSource: string, muted: boolean) => {
     const currentAudio = audioRef.current
     if (currentAudio && sourceRef.current === nextSource) {
+      currentAudio.muted = muted
       if (playbackPromiseRef.current) return playbackPromiseRef.current
       if (!currentAudio.paused) {
         setIsPlaying(true)
+        setAudioBlocked(false)
         return Promise.resolve(true)
       }
 
       const playback = currentAudio.play().then(() => {
         if (audioRef.current === currentAudio) {
-          setIsPlaying(true)
+          const alarmPaused = alarmSnapshotRef.current?.source === nextSource
+          setIsPlaying(!alarmPaused && !currentAudio.paused)
           setAudioBlocked(false)
         }
-        return true
+        return !currentAudio.paused && alarmSnapshotRef.current?.source !== nextSource
       }).catch(() => {
         if (audioRef.current === currentAudio) {
+          if (alarmSnapshotRef.current?.source === nextSource) {
+            setIsPlaying(false)
+            return false
+          }
           audioRef.current = null
           sourceRef.current = null
           setIsPlaying(false)
@@ -76,6 +98,7 @@ export function useAmbienceController(): AmbienceController {
     stopAudio()
     const audio = new Audio(nextSource)
     audio.loop = true
+    audio.muted = muted
     audio.preload = 'auto'
     audioRef.current = audio
     sourceRef.current = nextSource
@@ -83,12 +106,17 @@ export function useAmbienceController(): AmbienceController {
 
     const playback = audio.play().then(() => {
       if (audioRef.current === audio) {
-        setIsPlaying(true)
+        const alarmPaused = alarmSnapshotRef.current?.source === nextSource
+        setIsPlaying(!alarmPaused && !audio.paused)
         setAudioBlocked(false)
       }
-      return true
+      return !audio.paused && alarmSnapshotRef.current?.source !== nextSource
     }).catch(() => {
       if (audioRef.current === audio) {
+        if (alarmSnapshotRef.current?.source === nextSource) {
+          setIsPlaying(false)
+          return false
+        }
         audioRef.current = null
         sourceRef.current = null
         setIsPlaying(false)
@@ -142,81 +170,127 @@ export function useAmbienceController(): AmbienceController {
     return playback
   }, [stopAudio])
 
-  useEffect(() => {
-    if (isMuted || !source) {
-      stopAudio()
-      return
+  const queueRetry = useCallback((nextSource: string, muted: boolean) => {
+    if (retryCleanupRef.current) return
+
+    const retry = () => {
+      clearRetry()
+      void startAudio(nextSource, muted)
+    }
+    const cleanup = () => {
+      document.removeEventListener('pointerdown', retry, true)
+      document.removeEventListener('keydown', retry, true)
     }
 
-    if (permissionSetupStatus !== 'enabled' || !WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED || !autoPlay) {
-      if (sourceRef.current && sourceRef.current !== source) stopAudio()
-      return
-    }
+    retryCleanupRef.current = cleanup
+    document.addEventListener('pointerdown', retry, { capture: true, once: true })
+    document.addEventListener('keydown', retry, { capture: true, once: true })
+  }, [clearRetry, startAudio])
 
-    let cancelled = false
-    const queueRetry = (attempt: () => void) => {
-      if (retryCleanupRef.current) return
-
-      const retry = () => {
-        clearRetry()
-        if (!cancelled) attempt()
-      }
-      const cleanup = () => {
-        document.removeEventListener('pointerdown', retry, true)
-        document.removeEventListener('keydown', retry, true)
-      }
-
-      retryCleanupRef.current = cleanup
-      document.addEventListener('pointerdown', retry, { capture: true, once: true })
-      document.addEventListener('keydown', retry, { capture: true, once: true })
-    }
+  const open = useCallback(() => {
+    if (!WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED || !autoPlay || permissionSetupStatus !== 'enabled' || !source) return
 
     const attemptPlayback = async () => {
-      if (cancelled) return
-      const played = await startAudio(source)
-      if (cancelled) return
-      if (played) clearRetry()
-      else queueRetry(() => { void attemptPlayback() })
+      const played = await startAudio(source, isMuted)
+      if (!played && !alarmSnapshotRef.current) queueRetry(source, isMuted)
     }
 
     void attemptPlayback()
+  }, [autoPlay, isMuted, permissionSetupStatus, queueRetry, source, startAudio])
+
+  const pauseForAlarm = useCallback(() => {
+    const audio = audioRef.current
+    const currentSource = sourceRef.current
+    if (!audio || !currentSource) {
+      alarmSnapshotRef.current = null
+      return
+    }
+
+    alarmSnapshotRef.current = {
+      muted: audio.muted,
+      source: currentSource,
+      wasPlaying: !audio.paused,
+    }
+    clearRetry()
+    if (audio.paused) return
+
+    if (playbackPromiseRef.current) audio.muted = true
+    else audio.pause()
+    setIsPlaying(false)
+  }, [clearRetry])
+
+  const restoreAfterAlarm = useCallback(() => {
+    const snapshot = alarmSnapshotRef.current
+    alarmSnapshotRef.current = null
+    if (!snapshot?.wasPlaying || !source || source !== snapshot.source) return
+
+    void startAudio(snapshot.source, snapshot.muted)
+  }, [source, startAudio])
+
+  const pauseForAlarmRef = useRef(pauseForAlarm)
+  const restoreAfterAlarmRef = useRef(restoreAfterAlarm)
+  pauseForAlarmRef.current = pauseForAlarm
+  restoreAfterAlarmRef.current = restoreAfterAlarm
+
+  useEffect(() => {
+    const handleAlarmStart = () => pauseForAlarmRef.current()
+    const handleAlarmEnd = () => restoreAfterAlarmRef.current()
+    window.addEventListener(POMODORO_ALARM_START_EVENT, handleAlarmStart)
+    window.addEventListener(POMODORO_ALARM_END_EVENT, handleAlarmEnd)
 
     return () => {
-      cancelled = true
-      clearRetry()
+      window.removeEventListener(POMODORO_ALARM_START_EVENT, handleAlarmStart)
+      window.removeEventListener(POMODORO_ALARM_END_EVENT, handleAlarmEnd)
     }
-  }, [autoPlay, clearRetry, isMuted, permissionSetupStatus, source, startAudio, stopAudio])
+  }, [])
+
+  useEffect(() => {
+    if (sourceRef.current === source) return
+
+    const currentAudio = audioRef.current
+    const shouldResume = Boolean(currentAudio && !currentAudio.paused)
+    const muted = currentAudio?.muted ?? isMuted
+    stopAudio()
+    if (shouldResume && source) void startAudio(source, muted)
+  }, [isMuted, source, startAudio, stopAudio])
 
   useEffect(() => () => stopAudio(), [stopAudio])
 
   const toggle = useCallback(() => {
     if (!source) return
 
-    const nextMuted = isPlaying
-    if (!updateSettings({ pomodoro: { ambienceMuted: nextMuted } })) return
-    if (nextMuted) {
-      stopAudio()
+    const audio = audioRef.current
+    if (!isPlaying || !audio || sourceRef.current !== source || audio.paused) {
+      void startAudio(source, isMuted)
       return
     }
 
-    void startAudio(source)
-  }, [isPlaying, source, startAudio, stopAudio, updateSettings])
+    const nextMuted = !isMuted
+    if (!updateSettings({ pomodoro: { ambienceMuted: nextMuted } })) return
+    audio.muted = nextMuted
+    setAudioBlocked(false)
+  }, [isMuted, isPlaying, source, startAudio, updateSettings])
 
   const initializeAudio = useCallback(async (): Promise<AudioInitializationResult> => {
-    if (!source || isMuted) return 'not-configured'
-
-    const initialized = autoPlay
-      ? await startAudio(source)
-      : await primeAudio(source)
-
+    if (!source) return 'not-configured'
+    const initialized = await primeAudio(source)
     return initialized ? 'ready' : 'blocked'
-  }, [autoPlay, isMuted, primeAudio, source, startAudio])
+  }, [primeAudio, source])
+
+  const enableAudio = useCallback(async (): Promise<AudioInitializationResult> => {
+    if (!source) return 'not-configured'
+    const initialized = await startAudio(source, isMuted)
+    return initialized ? 'ready' : 'blocked'
+  }, [isMuted, source, startAudio])
 
   return {
     isPlaying,
+    isMuted,
     available: Boolean(source),
     audioBlocked,
     toggle,
+    open,
     initializeAudio,
+    enableAudio,
   }
 }
