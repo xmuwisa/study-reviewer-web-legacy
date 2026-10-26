@@ -3,8 +3,6 @@
 export const WEB_AUTOMATIC_ALARM_AUDIO_ENABLED = true
 export const WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED = true
 export const WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE = true
-export const POMODORO_ALARM_START_EVENT = 'pomodoro-alarm-start'
-export const POMODORO_ALARM_END_EVENT = 'pomodoro-alarm-end'
 
 export const POMODORO_ALARM_OPTIONS = [
   { value: 'none', label: 'None', src: null },

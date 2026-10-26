@@ -290,7 +290,7 @@ export function AppShell() {
         )}
       >
           <div className="flex min-h-full w-full items-start justify-center lg:block lg:min-h-0 lg:flex-1 lg:overflow-x-hidden lg:overflow-y-auto lg:rounded-[2rem]">
-            <PomodoroTimer controller={pomodoro} ambience={ambience} onClose={handlePomodoroClose} onOpenSettings={handlePomodoroSettings} />
+            <PomodoroTimer controller={pomodoro} ambience={ambience} onClose={handlePomodoroClose} onOpenSettings={handlePomodoroSettings} onRetryAudio={handleEnableSound} />
           </div>
       </div>
       <PomodoroPermissionDialog

@@ -25,7 +25,7 @@ import {
   Sun,
   Trash2,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { Dispatch, KeyboardEvent, MouseEvent, PointerEvent, ReactNode, SetStateAction, TransitionEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -49,7 +49,8 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
-import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_ALARM_START_EVENT, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
+import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
+import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
 import { POMODORO_PERMISSION_SETUP_EVENT } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 import { cn } from '@/lib/utils'
@@ -1440,26 +1441,18 @@ export function SettingsPage() {
   const location = useLocation()
   const { data, updateSettings, restoreFullBackup } = useStudyData()
   const [saveToast, setSaveToast] = useState<{ kind: 'success' | 'error'; message: string } | null>(null)
-  const [activePreview, setActivePreview] = useState<'alarm' | 'ambience' | null>(null)
-  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  const audioSnapshot = useSyncExternalStore(
+    pomodoroAudioManager.subscribe,
+    pomodoroAudioManager.getSnapshot,
+    pomodoroAudioManager.getSnapshot,
+  )
+  const activePreview = audioSnapshot.preview.kind
   const settings = data.settings
 
   useEffect(() => {
     return () => {
-      previewAudioRef.current?.pause()
-      previewAudioRef.current = null
+      pomodoroAudioManager.stopPreview()
     }
-  }, [])
-
-  useEffect(() => {
-    const stopPreviewForAlarm = () => {
-      previewAudioRef.current?.pause()
-      previewAudioRef.current = null
-      setActivePreview(null)
-    }
-
-    window.addEventListener(POMODORO_ALARM_START_EVENT, stopPreviewForAlarm)
-    return () => window.removeEventListener(POMODORO_ALARM_START_EVENT, stopPreviewForAlarm)
   }, [])
 
   function savePreferences(patch: Parameters<typeof updateSettings>[0], message = 'Preference saved locally.') {
@@ -1487,10 +1480,8 @@ export function SettingsPage() {
     savePreferences({ pomodoro: { [field]: nextValue } })
   }
 
-  function stopAudioPreview() {
-    previewAudioRef.current?.pause()
-    previewAudioRef.current = null
-    setActivePreview(null)
+  function stopAudioPreview(restoreAmbience = true) {
+    pomodoroAudioManager.stopPreview(restoreAmbience)
   }
 
   function previewAudio(kind: 'alarm' | 'ambience', source: string | null) {
@@ -1502,20 +1493,7 @@ export function SettingsPage() {
     stopAudioPreview()
     if (!source) return
 
-    const audio = new Audio(source)
-    audio.loop = kind === 'ambience'
-    previewAudioRef.current = audio
-    setActivePreview(kind)
-    audio.addEventListener('ended', () => {
-      if (previewAudioRef.current !== audio) return
-      previewAudioRef.current = null
-      setActivePreview(null)
-    }, { once: true })
-    void audio.play().catch(() => {
-      if (previewAudioRef.current !== audio) return
-      previewAudioRef.current = null
-      setActivePreview(null)
-    })
+    void pomodoroAudioManager.startPreview(kind, source)
   }
 
   function updatePomodoroAlarm(value: string | null) {
@@ -1528,7 +1506,7 @@ export function SettingsPage() {
   function updatePomodoroAmbience(value: string | null) {
     if (value === null) return
     if (!POMODORO_AMBIENCE_OPTIONS.some((option) => option.value === value)) return
-    stopAudioPreview()
+    stopAudioPreview(false)
     savePreferences({ pomodoro: { defaultAmbience: value as PomodoroAmbienceSelection } })
   }
 

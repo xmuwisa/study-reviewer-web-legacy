@@ -207,9 +207,10 @@ export function PomodoroLauncher({ controller, audioBlocked, open, onClick, onEn
   )
 }
 
-export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings }: { controller: PomodoroController; ambience: AmbienceController; onClose: () => void; onOpenSettings: () => void }) {
+export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings, onRetryAudio }: { controller: PomodoroController; ambience: AmbienceController; onClose: () => void; onOpenSettings: () => void; onRetryAudio: () => void }) {
   const { mode, duration, preciseDuration, isRunning, hasStarted, remainingSeconds, indicatorDurationMinutes, alarmActive, alarmSoundAvailable, alarmSilenced, setDurationValue, handleModeChange, handleReset, handlePlayPause, handlePreciseDurationChange, commitPreciseDuration, toggleAlarmSound, stopAlarm, snoozeAlarm } = controller
   const indicatorAngle = hasStarted ? getCountdownAngle(remainingSeconds, indicatorDurationMinutes) : getIndicatorAngle(duration)
+  const audioBlocked = controller.audioBlocked || ambience.audioBlocked
 
   function handlePlayPauseClick() {
     if (!isRunning && !hasStarted) ambience.startAutomatically()
@@ -229,6 +230,12 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings }:
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--pomodoro-muted)]">Session complete</p>
             <h2 id="pomodoro-alarm-title" className="font-heading text-2xl font-semibold tracking-tight text-[var(--pomodoro-ink)] sm:text-3xl">Time for a transition</h2>
           </div>
+          {audioBlocked && (
+            <div role="alert" className="flex w-full max-w-sm items-center justify-between gap-3 rounded-xl bg-destructive/10 px-3 py-2 text-left text-sm text-destructive">
+              <span>Sound playback was blocked by your browser.</span>
+              <Button type="button" size="sm" variant="outline" onClick={onRetryAudio}>Retry sound</Button>
+            </div>
+          )}
           <div className="flex w-full max-w-sm flex-wrap gap-3">
             <Button type="button" variant="outline" className="min-w-0 flex-1 basis-full border-[color-mix(in_oklab,var(--pomodoro-ink)_15%,transparent)] bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)]" disabled={!alarmSoundAvailable} onClick={toggleAlarmSound}>
               {alarmSilenced ? <Volume2 aria-hidden="true" data-icon="inline-start" /> : <VolumeX aria-hidden="true" data-icon="inline-start" />}
@@ -275,6 +282,12 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings }:
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+        {audioBlocked && !alarmActive && (
+          <div role="alert" className="flex items-center justify-between gap-3 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <span>Sound playback was blocked by your browser.</span>
+            <Button type="button" size="sm" variant="outline" onClick={onRetryAudio}>Retry sound</Button>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="flex w-full flex-col items-stretch gap-5 px-5 pb-6 pt-4 sm:gap-6 sm:px-8 sm:pb-7">

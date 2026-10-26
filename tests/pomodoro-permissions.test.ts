@@ -33,7 +33,7 @@ test('saved Happy Bells selection resolves to the shipped alarm asset', () => {
 test('audio setup feedback can complete before notification permission resolves', () => {
   expect(getAudioSetupFeedback('ready')).toEqual({
     kind: 'success',
-    message: 'Browser audio is ready. Notification permission is being handled independently by your browser.',
+    message: 'Audio controls are ready. Browser playback will be checked when a sound starts.',
   })
 })
 

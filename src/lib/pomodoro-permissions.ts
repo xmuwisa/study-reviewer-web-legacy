@@ -85,7 +85,7 @@ export function getAudioSetupFeedback(audio: AudioInitializationResult) {
     return { kind: 'success' as const, message: 'Browser audio setup completed. Your current sound preferences were preserved.' }
   }
 
-  return { kind: 'success' as const, message: 'Browser audio is ready. Notification permission is being handled independently by your browser.' }
+  return { kind: 'success' as const, message: 'Audio controls are ready. Browser playback will be checked when a sound starts.' }
 }
 
 export function getAudioRetryFeedback(audio: AudioInitializationResult) {
