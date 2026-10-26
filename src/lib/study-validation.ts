@@ -145,6 +145,9 @@ function validatePomodoroPreferences(value: unknown, path: string, issues: Valid
   if (typeof value.defaultSnoozeMinutes !== 'number' || !POMODORO_SNOOZE_OPTIONS.some((option) => option === value.defaultSnoozeMinutes)) {
     addIssue(issues, `${path}.defaultSnoozeMinutes`, 'must be 5, 10, or 15 minutes')
   }
+  if (value.permissionSetupStatus !== 'pending' && value.permissionSetupStatus !== 'enabled' && value.permissionSetupStatus !== 'dismissed') {
+    addIssue(issues, `${path}.permissionSetupStatus`, 'must be pending, enabled, or dismissed')
+  }
 
   return true
 }

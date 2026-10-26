@@ -2,6 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { getPomodoroRemainingSeconds } from '@/lib/pomodoro'
 import { POMODORO_ALARM_OPTIONS, WEB_AUTOMATIC_ALARM_AUDIO_ENABLED } from '@/lib/pomodoro-audio'
+import {
+  getNotificationPermission,
+  getPomodoroNotificationIdentity,
+  showPomodoroNotification,
+  type AudioInitializationResult,
+} from '@/lib/pomodoro-permissions'
 import type { PomodoroMode } from '@/lib/study-data'
 import { useStudyData } from '@/lib/use-study-data'
 
@@ -17,6 +23,7 @@ export type PomodoroController = {
   remainingLabel: string
   indicatorDurationMinutes: number
   alarmActive: boolean
+  audioBlocked: boolean
   modeLabel: string
   setDurationValue: (value: number) => void
   handleModeChange: (value: string[]) => void
@@ -24,6 +31,7 @@ export type PomodoroController = {
   handlePlayPause: () => void
   handlePreciseDurationChange: (value: string) => void
   commitPreciseDuration: () => void
+  initializeAudio: () => Promise<AudioInitializationResult>
   stopAlarm: () => void
   snoozeAlarm: () => void
 }
@@ -49,10 +57,13 @@ export function usePomodoroController(): PomodoroController {
   const alarmPlayPendingRef = useRef(false)
   const alarmPlayRef = useRef<(source: string) => Promise<boolean>>(() => Promise.resolve(false))
   const alarmAnnouncementRef = useRef<string | null>(null)
+  const notificationAnnouncementRef = useRef<string | null>(null)
+  const [audioBlocked, setAudioBlocked] = useState(false)
   const session = data.timer.activeSession
   const mode = data.timer.selectedMode
   const modeConfig = TIMER_MODES[mode]
   const duration = data.settings.pomodoro[modeConfig.durationKey]
+  const permissionSetupStatus = data.settings.pomodoro.permissionSetupStatus
   const selectedAlarm = POMODORO_ALARM_OPTIONS.find((option) => option.value === data.settings.pomodoro.defaultAlarm) ?? POMODORO_ALARM_OPTIONS[0]
   const remainingSeconds = session ? getPomodoroRemainingSeconds(session, now) : duration * 60
   const alarmActive = Boolean(session && (session.status === 'completed' || (session.status === 'running' && remainingSeconds === 0)))
@@ -109,9 +120,13 @@ export function usePomodoroController(): PomodoroController {
     try {
       await audio.play()
       clearAlarmRetry()
+      setAudioBlocked(false)
       return true
     } catch {
-      if (alarmAudioRef.current === audio) queueAlarmRetry(source)
+      if (alarmAudioRef.current === audio) {
+        setAudioBlocked(true)
+        queueAlarmRetry(source)
+      }
       return false
     } finally {
       alarmPlayPendingRef.current = false
@@ -123,15 +138,31 @@ export function usePomodoroController(): PomodoroController {
   const primeAlarmAudio = useCallback((source: string) => {
     const audio = prepareAlarmAudio(source)
     audio.muted = true
-    void audio.play().then(() => {
-      if (alarmAudioRef.current !== audio) return
+    return audio.play().then(() => {
+      if (alarmAudioRef.current !== audio) return false
       audio.pause()
       audio.currentTime = 0
       audio.muted = false
+      setAudioBlocked(false)
+      return true
     }).catch(() => {
-      if (alarmAudioRef.current === audio) audio.muted = false
+      if (alarmAudioRef.current === audio) {
+        audio.muted = false
+        setAudioBlocked(true)
+      }
+      return false
     })
   }, [prepareAlarmAudio])
+
+  const initializeAudio = useCallback(async (): Promise<AudioInitializationResult> => {
+    if (!selectedAlarm.src) return 'not-configured'
+
+    const initialized = alarmActive && data.settings.pomodoro.soundEnabled
+      ? await playAlarmAudio(selectedAlarm.src)
+      : await primeAlarmAudio(selectedAlarm.src)
+
+    return initialized ? 'ready' : 'blocked'
+  }, [alarmActive, data.settings.pomodoro.soundEnabled, playAlarmAudio, primeAlarmAudio, selectedAlarm.src])
 
   const stopAlarmAudio = useCallback(() => {
     clearAlarmRetry()
@@ -143,6 +174,7 @@ export function usePomodoroController(): PomodoroController {
     }
     alarmAudioRef.current = null
     alarmSourceRef.current = null
+    setAudioBlocked(false)
   }, [clearAlarmRetry])
 
   useEffect(() => {
@@ -171,7 +203,7 @@ export function usePomodoroController(): PomodoroController {
       return
     }
 
-    if (!WEB_AUTOMATIC_ALARM_AUDIO_ENABLED) {
+    if (permissionSetupStatus !== 'enabled' || !WEB_AUTOMATIC_ALARM_AUDIO_ENABLED) {
       stopAlarmAudio()
       return
     }
@@ -181,14 +213,33 @@ export function usePomodoroController(): PomodoroController {
       return
     }
 
-    const alarmIdentity = `${session?.completedAt ?? session?.endsAt ?? 'unknown'}:${selectedAlarm.src}`
+    const alarmIdentity = `${session?.mode}:${session?.startedAt}:${session?.endsAt ?? 'unknown'}:${selectedAlarm.src}`
     if (alarmAnnouncementRef.current !== alarmIdentity) {
       alarmAnnouncementRef.current = alarmIdentity
       window.dispatchEvent(new Event('pomodoro-alarm-start'))
     }
 
     void playAlarmAudio(selectedAlarm.src)
-  }, [alarmActive, data.settings.pomodoro.soundEnabled, playAlarmAudio, selectedAlarm.src, session?.completedAt, session?.endsAt, stopAlarmAudio])
+  }, [alarmActive, data.settings.pomodoro.soundEnabled, permissionSetupStatus, playAlarmAudio, selectedAlarm.src, session?.completedAt, session?.endsAt, stopAlarmAudio])
+
+  useEffect(() => {
+    if (!alarmActive) {
+      notificationAnnouncementRef.current = null
+      return
+    }
+
+    if (permissionSetupStatus !== 'enabled' || !data.settings.pomodoro.notificationsEnabled || getNotificationPermission() !== 'granted' || !session) return
+
+    const notificationIdentity = getPomodoroNotificationIdentity(session)
+    if (notificationAnnouncementRef.current === notificationIdentity) return
+
+    const shown = showPomodoroNotification(
+      'Pomodoro session finished',
+      `${modeConfig.label} is complete.`,
+      notificationIdentity,
+    )
+    if (shown) notificationAnnouncementRef.current = notificationIdentity
+  }, [alarmActive, data.settings.pomodoro.notificationsEnabled, modeConfig.label, permissionSetupStatus, session])
 
   useEffect(() => () => stopAlarmAudio(), [stopAlarmAudio])
 
@@ -265,6 +316,7 @@ export function usePomodoroController(): PomodoroController {
     remainingLabel: formatTimer(remainingSeconds),
     indicatorDurationMinutes: session ? data.timer.selectedDurationMinutes : duration,
     alarmActive,
+    audioBlocked,
     modeLabel: modeConfig.label,
     setDurationValue,
     handleModeChange,
@@ -272,6 +324,7 @@ export function usePomodoroController(): PomodoroController {
     handlePlayPause,
     handlePreciseDurationChange,
     commitPreciseDuration,
+    initializeAudio,
     stopAlarm,
     snoozeAlarm,
   }

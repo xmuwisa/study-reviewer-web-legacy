@@ -159,7 +159,9 @@ function TomatoDial({ duration, indicatorAngle, label, timerSeconds, onDurationC
   )
 }
 
-export function PomodoroLauncher({ controller, ambience, open, onClick }: { controller: PomodoroController; ambience: AmbienceController; open: boolean; onClick: () => void }) {
+export function PomodoroLauncher({ controller, ambience, open, onClick, onEnableSound }: { controller: PomodoroController; ambience: AmbienceController; open: boolean; onClick: () => void; onEnableSound: () => void }) {
+  const soundBlocked = controller.audioBlocked || ambience.audioBlocked
+
   return (
     <div className="fixed right-4 bottom-6 z-50 sm:right-7 sm:bottom-8">
       <div className="flex flex-col items-center gap-3">
@@ -176,10 +178,13 @@ export function PomodoroLauncher({ controller, ambience, open, onClick }: { cont
           {ambience.isPlaying ? <VolumeX aria-hidden="true" /> : <Music2 aria-hidden="true" />}
         </Button>
         <div className="relative">
-          {!open && controller.alarmActive ? (
-            <div className="absolute top-1/2 right-full mr-2 flex -translate-y-1/2 items-center gap-2" aria-label="Pomodoro alarm actions">
-              <Button type="button" size="sm" variant="secondary" className="bg-[var(--pomodoro-ink)] font-semibold text-[var(--pomodoro-panel)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] hover:bg-[var(--pomodoro-ink)]/90 hover:text-[var(--pomodoro-panel)]" onClick={controller.stopAlarm}>Stop</Button>
-              <Button type="button" size="sm" className="bg-[var(--pomodoro-control)] text-[var(--primary-foreground)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] hover:bg-[var(--pomodoro-control)]/90" onClick={controller.snoozeAlarm}>Snooze</Button>
+          {!open && (soundBlocked || controller.alarmActive) ? (
+            <div className="absolute top-1/2 right-full mr-2 flex -translate-y-1/2 items-center gap-2" aria-label="Pomodoro audio and alarm actions">
+              {soundBlocked && <Button type="button" size="sm" variant="outline" onClick={onEnableSound}>Enable sound</Button>}
+              {controller.alarmActive && <>
+                <Button type="button" size="sm" variant="secondary" className="bg-[var(--pomodoro-ink)] font-semibold text-[var(--pomodoro-panel)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] hover:bg-[var(--pomodoro-ink)]/90 hover:text-[var(--pomodoro-panel)]" onClick={controller.stopAlarm}>Stop</Button>
+                <Button type="button" size="sm" className="bg-[var(--pomodoro-control)] text-[var(--primary-foreground)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] hover:bg-[var(--pomodoro-control)]/90" onClick={controller.snoozeAlarm}>Snooze</Button>
+              </>}
             </div>
           ) : !open && controller.isRunning ? (
             <div aria-live="polite" className="absolute top-1/2 right-full mr-2 flex -translate-y-1/2 items-center gap-2 rounded-full border border-[color-mix(in_oklab,var(--pomodoro-ink)_14%,transparent)] bg-[var(--pomodoro-panel)] px-3 py-2 text-right shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)]">

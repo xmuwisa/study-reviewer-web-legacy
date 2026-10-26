@@ -3,6 +3,7 @@ import type {
   PomodoroAmbienceSelection,
   PomodoroSnoozeMinutes,
 } from '@/lib/pomodoro-audio'
+import type { PomodoroPermissionSetupStatus } from '@/lib/pomodoro-permissions'
 
 export const STUDY_DATA_SCHEMA_VERSION = 2 as const
 export const STUDY_DATA_STORAGE_KEY = `study-reviewer:data:v${STUDY_DATA_SCHEMA_VERSION}`
@@ -61,6 +62,7 @@ export type PomodoroPreferences = {
   defaultAlarm: PomodoroAlarmSelection
   defaultAmbience: PomodoroAmbienceSelection
   defaultSnoozeMinutes: PomodoroSnoozeMinutes
+  permissionSetupStatus: PomodoroPermissionSetupStatus
 }
 
 export type StudySettings = {
@@ -161,6 +163,7 @@ export function createDefaultSettings(): StudySettings {
       defaultAlarm: 'none',
       defaultAmbience: 'none',
       defaultSnoozeMinutes: 5,
+      permissionSetupStatus: 'pending',
     },
   }
 }

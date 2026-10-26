@@ -60,9 +60,9 @@ materials and preferences as the library grows.
 
 ## Pomodoro web audio note
 
-Automatic alarm playback and automatic ambience startup are deferred until the
-planned Electron desktop migration because browser autoplay restrictions make
-those behaviors unreliable. The web app preserves the audio assets, playback
-integration, and saved preferences for that migration. Manual ambience playback
-through the floating music control and the ambience preview in Settings remain
-available.
+The web app can initialize browser audio and notifications through the Pomodoro
+setup dialog, then automatically play the selected alarm or background ambience
+when the corresponding preferences are enabled. Browser autoplay policies can
+still block audible playback, in which case the app keeps the saved preferences
+and offers an Enable sound action. Manual ambience playback through the floating
+music control and the ambience preview in Settings remain available.

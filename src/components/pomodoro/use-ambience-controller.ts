@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { POMODORO_AMBIENCE_OPTIONS, WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED } from '@/lib/pomodoro-audio'
+import type { AudioInitializationResult } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 
 export type AmbienceController = {
   isPlaying: boolean
   available: boolean
+  audioBlocked: boolean
   toggle: () => void
+  initializeAudio: () => Promise<AudioInitializationResult>
 }
 
 export function useAmbienceController(): AmbienceController {
@@ -16,10 +19,12 @@ export function useAmbienceController(): AmbienceController {
   const retryCleanupRef = useRef<(() => void) | null>(null)
   const playbackPromiseRef = useRef<Promise<boolean> | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [audioBlocked, setAudioBlocked] = useState(false)
   const selectedAmbience = POMODORO_AMBIENCE_OPTIONS.find((option) => option.value === data.settings.pomodoro.defaultAmbience) ?? POMODORO_AMBIENCE_OPTIONS[0]
   const source = selectedAmbience.src
   const isMuted = data.settings.pomodoro.ambienceMuted
   const autoPlay = data.settings.pomodoro.autoPlayAmbience
+  const permissionSetupStatus = data.settings.pomodoro.permissionSetupStatus
 
   const clearRetry = useCallback(() => {
     retryCleanupRef.current?.()
@@ -34,6 +39,7 @@ export function useAmbienceController(): AmbienceController {
     audioRef.current = null
     sourceRef.current = null
     setIsPlaying(false)
+    setAudioBlocked(false)
   }, [clearRetry])
 
   const startAudio = useCallback((nextSource: string) => {
@@ -46,13 +52,17 @@ export function useAmbienceController(): AmbienceController {
       }
 
       const playback = currentAudio.play().then(() => {
-        if (audioRef.current === currentAudio) setIsPlaying(true)
+        if (audioRef.current === currentAudio) {
+          setIsPlaying(true)
+          setAudioBlocked(false)
+        }
         return true
       }).catch(() => {
         if (audioRef.current === currentAudio) {
           audioRef.current = null
           sourceRef.current = null
           setIsPlaying(false)
+          setAudioBlocked(true)
         }
         return false
       })
@@ -72,13 +82,56 @@ export function useAmbienceController(): AmbienceController {
     audio.load()
 
     const playback = audio.play().then(() => {
-      if (audioRef.current === audio) setIsPlaying(true)
+      if (audioRef.current === audio) {
+        setIsPlaying(true)
+        setAudioBlocked(false)
+      }
       return true
     }).catch(() => {
       if (audioRef.current === audio) {
         audioRef.current = null
         sourceRef.current = null
         setIsPlaying(false)
+        setAudioBlocked(true)
+      }
+      return false
+    })
+    playbackPromiseRef.current = playback
+    void playback.finally(() => {
+      if (playbackPromiseRef.current === playback) playbackPromiseRef.current = null
+    })
+    return playback
+  }, [stopAudio])
+
+  const primeAudio = useCallback((nextSource: string) => {
+    const currentAudio = audioRef.current
+    if (currentAudio && sourceRef.current === nextSource && !currentAudio.paused) return Promise.resolve(true)
+
+    if (!currentAudio || sourceRef.current !== nextSource) stopAudio()
+
+    const audio = audioRef.current ?? new Audio(nextSource)
+    audio.loop = true
+    audio.preload = 'auto'
+    audio.muted = true
+    audioRef.current = audio
+    sourceRef.current = nextSource
+    audio.load()
+
+    const playback = audio.play().then(() => {
+      if (audioRef.current !== audio) return false
+      audio.pause()
+      audio.currentTime = 0
+      audio.muted = false
+      setAudioBlocked(false)
+      return true
+    }).catch(() => {
+      if (audioRef.current === audio) {
+        audio.pause()
+        audio.currentTime = 0
+        audio.muted = false
+        audioRef.current = null
+        sourceRef.current = null
+        setAudioBlocked(true)
       }
       return false
     })
@@ -95,7 +148,7 @@ export function useAmbienceController(): AmbienceController {
       return
     }
 
-    if (!WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED || !autoPlay) {
+    if (permissionSetupStatus !== 'enabled' || !WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED || !autoPlay) {
       if (sourceRef.current && sourceRef.current !== source) stopAudio()
       return
     }
@@ -132,7 +185,7 @@ export function useAmbienceController(): AmbienceController {
       cancelled = true
       clearRetry()
     }
-  }, [autoPlay, clearRetry, isMuted, source, startAudio, stopAudio])
+  }, [autoPlay, clearRetry, isMuted, permissionSetupStatus, source, startAudio, stopAudio])
 
   useEffect(() => () => stopAudio(), [stopAudio])
 
@@ -149,9 +202,21 @@ export function useAmbienceController(): AmbienceController {
     void startAudio(source)
   }, [isPlaying, source, startAudio, stopAudio, updateSettings])
 
+  const initializeAudio = useCallback(async (): Promise<AudioInitializationResult> => {
+    if (!source || isMuted) return 'not-configured'
+
+    const initialized = autoPlay
+      ? await startAudio(source)
+      : await primeAudio(source)
+
+    return initialized ? 'ready' : 'blocked'
+  }, [autoPlay, isMuted, primeAudio, source, startAudio])
+
   return {
     isPlaying,
     available: Boolean(source),
+    audioBlocked,
     toggle,
+    initializeAudio,
   }
 }

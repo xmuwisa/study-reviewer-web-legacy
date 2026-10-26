@@ -1,15 +1,24 @@
 import { ChevronRight, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { getPageTitle } from '@/app/routes'
 import { MobileNav, PrimaryNav } from '@/components/navigation/PrimaryNav'
+import { PomodoroPermissionDialog } from '@/components/pomodoro/PomodoroPermissionDialog'
 import { PomodoroLauncher, PomodoroTimer } from '@/components/pomodoro/PomodoroTimer'
 import { useAmbienceController } from '@/components/pomodoro/use-ambience-controller'
 import { usePomodoroController } from '@/components/pomodoro/use-pomodoro-controller'
 import { Button } from '@/components/ui/button'
+import { Notification, type NotificationState } from '@/components/ui/notification'
 import { findCategory, findTopic, type StudyData } from '@/lib/study-data'
 import type { StorageNotice } from '@/lib/study-context'
+import {
+  combineAudioInitializationResults,
+  getAudioRetryFeedback,
+  getPermissionSetupFeedback,
+  POMODORO_PERMISSION_SETUP_EVENT,
+  requestNotificationPermission,
+} from '@/lib/pomodoro-permissions'
 import { cn } from '@/lib/utils'
 import { useStudyData } from '@/lib/use-study-data'
 
@@ -105,11 +114,81 @@ function StorageNotice({ storageNotice, clearStorageNotice }: { storageNotice: S
 export function AppShell() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const { data, storageNotice, clearStorageNotice } = useStudyData()
+  const { data, storageNotice, clearStorageNotice, updateSettings } = useStudyData()
   const pomodoro = usePomodoroController()
   const ambience = useAmbienceController()
   const [isPomodoroOpen, setIsPomodoroOpen] = useState(false)
+  const [isPermissionSetupOpen, setIsPermissionSetupOpen] = useState(() => data.settings.pomodoro.permissionSetupStatus === 'pending')
+  const [isPermissionSetupBusy, setIsPermissionSetupBusy] = useState(false)
+  const [permissionSetupFeedback, setPermissionSetupFeedback] = useState<NotificationState | null>(null)
+  const permissionSetupClosingRef = useRef(false)
   const pomodoroPanelRef = useRef<HTMLDivElement>(null)
+
+  const closePermissionSetup = useCallback(() => {
+    permissionSetupClosingRef.current = true
+    setIsPermissionSetupOpen(false)
+  }, [])
+
+  const handlePermissionSetupDismiss = useCallback(() => {
+    if (isPermissionSetupBusy) return
+
+    closePermissionSetup()
+    const saved = updateSettings({ pomodoro: { permissionSetupStatus: 'dismissed' } })
+    setPermissionSetupFeedback(saved ? null : { kind: 'error', message: 'This setup choice could not be saved locally.' })
+  }, [closePermissionSetup, isPermissionSetupBusy, updateSettings])
+
+  const handlePermissionSetupEnable = useCallback(async () => {
+    if (isPermissionSetupBusy) return
+
+    setIsPermissionSetupBusy(true)
+    const [audioResults, notificationResult] = await Promise.all([
+      Promise.all([pomodoro.initializeAudio(), ambience.initializeAudio()]),
+      requestNotificationPermission(),
+    ])
+    const audioResult = combineAudioInitializationResults(...audioResults)
+    const saved = updateSettings({ pomodoro: { permissionSetupStatus: 'enabled' } })
+
+    closePermissionSetup()
+    setIsPermissionSetupBusy(false)
+    setPermissionSetupFeedback(saved
+      ? getPermissionSetupFeedback(audioResult, notificationResult)
+      : { kind: 'error', message: 'Setup finished, but the setup choice could not be saved locally.' })
+  }, [ambience, closePermissionSetup, isPermissionSetupBusy, pomodoro, updateSettings])
+
+  const handleEnableSound = useCallback(async () => {
+    const audioResults = await Promise.all([pomodoro.initializeAudio(), ambience.initializeAudio()])
+    setPermissionSetupFeedback(getAudioRetryFeedback(combineAudioInitializationResults(...audioResults)))
+  }, [ambience, pomodoro])
+
+  const handlePermissionSetupOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      permissionSetupClosingRef.current = false
+      setIsPermissionSetupOpen(true)
+      return
+    }
+
+    if (permissionSetupClosingRef.current) {
+      permissionSetupClosingRef.current = false
+      setIsPermissionSetupOpen(false)
+      return
+    }
+
+    handlePermissionSetupDismiss()
+  }, [handlePermissionSetupDismiss])
+
+  useEffect(() => {
+    if (data.settings.pomodoro.permissionSetupStatus === 'pending') setIsPermissionSetupOpen(true)
+  }, [data.settings.pomodoro.permissionSetupStatus])
+
+  useEffect(() => {
+    const openPermissionSetup = () => {
+      permissionSetupClosingRef.current = false
+      setIsPermissionSetupOpen(true)
+    }
+
+    window.addEventListener(POMODORO_PERMISSION_SETUP_EVENT, openPermissionSetup)
+    return () => window.removeEventListener(POMODORO_PERMISSION_SETUP_EVENT, openPermissionSetup)
+  }, [])
 
   useEffect(() => {
     if (!isPomodoroOpen) return
@@ -158,7 +237,13 @@ export function AppShell() {
         </div>
         <Outlet />
       </main>
-      <PomodoroLauncher controller={pomodoro} ambience={ambience} open={isPomodoroOpen} onClick={() => setIsPomodoroOpen((open) => !open)} />
+      <PomodoroLauncher
+        controller={pomodoro}
+        ambience={ambience}
+        open={isPomodoroOpen}
+        onClick={() => setIsPomodoroOpen((open) => !open)}
+        onEnableSound={handleEnableSound}
+      />
       <div
         ref={pomodoroPanelRef}
         aria-hidden={!isPomodoroOpen}
@@ -174,6 +259,14 @@ export function AppShell() {
             }} />
           </div>
       </div>
+      <PomodoroPermissionDialog
+        open={isPermissionSetupOpen}
+        busy={isPermissionSetupBusy}
+        onOpenChange={handlePermissionSetupOpenChange}
+        onEnable={handlePermissionSetupEnable}
+        onNotNow={handlePermissionSetupDismiss}
+      />
+      <Notification notification={permissionSetupFeedback} onDismiss={() => setPermissionSetupFeedback(null)} />
     </div>
   )
 }

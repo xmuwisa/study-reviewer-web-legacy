@@ -50,6 +50,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
 import { POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
+import { POMODORO_PERMISSION_SETUP_EVENT } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 import { cn } from '@/lib/utils'
 import {
@@ -1784,9 +1785,14 @@ export function SettingsPage() {
                 </FieldContent>
                 <Toggle pressed={settings.pomodoro.notificationsEnabled} onPressedChange={(pressed) => savePreferences({ pomodoro: { notificationsEnabled: pressed } })} aria-label="Browser notifications" size="sm">{settings.pomodoro.notificationsEnabled ? 'On' : 'Off'}</Toggle>
               </Field>
-              <div className="pt-2">
-                <CardTitle className="text-2xl">Sounds &amp; Snooze</CardTitle>
-                <CardDescription className="mt-2 leading-relaxed">Choose the sounds and snooze length for future Pomodoro alerts.</CardDescription>
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <CardTitle className="text-2xl">Sounds &amp; Snooze</CardTitle>
+                  <CardDescription className="mt-2 leading-relaxed">Choose the sounds and snooze length for future Pomodoro alerts.</CardDescription>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event(POMODORO_PERMISSION_SETUP_EVENT))}>
+                  Set up sound &amp; notifications
+                </Button>
               </div>
               <div className="grid gap-5 pt-1 sm:grid-cols-2">
                 {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field>
