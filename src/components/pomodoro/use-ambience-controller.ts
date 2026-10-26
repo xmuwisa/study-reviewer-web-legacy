@@ -21,7 +21,7 @@ export type AmbienceController = {
   available: boolean
   audioBlocked: boolean
   toggle: () => void
-  open: () => void
+  startAutomatically: () => void
   initializeAudio: () => Promise<AudioInitializationResult>
   enableAudio: () => Promise<AudioInitializationResult>
 }
@@ -39,7 +39,6 @@ export function useAmbienceController(): AmbienceController {
   const source = selectedAmbience.src
   const isMuted = data.settings.pomodoro.ambienceMuted
   const autoPlay = data.settings.pomodoro.autoPlayAmbience
-  const permissionSetupStatus = data.settings.pomodoro.permissionSetupStatus
 
   const clearRetry = useCallback(() => {
     retryCleanupRef.current?.()
@@ -187,8 +186,8 @@ export function useAmbienceController(): AmbienceController {
     document.addEventListener('keydown', retry, { capture: true, once: true })
   }, [clearRetry, startAudio])
 
-  const open = useCallback(() => {
-    if (!WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED || !autoPlay || permissionSetupStatus !== 'enabled' || !source) return
+  const startAutomatically = useCallback(() => {
+    if (!WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED || !autoPlay || !source) return
 
     const attemptPlayback = async () => {
       const played = await startAudio(source, isMuted)
@@ -196,7 +195,7 @@ export function useAmbienceController(): AmbienceController {
     }
 
     void attemptPlayback()
-  }, [autoPlay, isMuted, permissionSetupStatus, queueRetry, source, startAudio])
+  }, [autoPlay, isMuted, queueRetry, source, startAudio])
 
   const pauseForAlarm = useCallback(() => {
     const audio = audioRef.current
@@ -289,7 +288,7 @@ export function useAmbienceController(): AmbienceController {
     available: Boolean(source),
     audioBlocked,
     toggle,
-    open,
+    startAutomatically,
     initializeAudio,
     enableAudio,
   }

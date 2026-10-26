@@ -21,6 +21,7 @@ import {
 } from '@/lib/pomodoro-permissions'
 import { cn } from '@/lib/utils'
 import { useStudyData } from '@/lib/use-study-data'
+import { getPomodoroDocumentTitle } from '@/components/pomodoro/pomodoro-model'
 
 function Brand() {
   return (
@@ -118,7 +119,7 @@ export function AppShell() {
   const pomodoro = usePomodoroController()
   const ambience = useAmbienceController()
   const { initializeAudio: initializePomodoroAudio } = pomodoro
-  const { audioBlocked: ambienceAudioBlocked, enableAudio: enableAmbienceAudio, initializeAudio: initializeAmbienceAudio, open: openAmbience } = ambience
+  const { audioBlocked: ambienceAudioBlocked, enableAudio: enableAmbienceAudio, initializeAudio: initializeAmbienceAudio } = ambience
   const [isPomodoroOpen, setIsPomodoroOpen] = useState(false)
   const [isPermissionSetupOpen, setIsPermissionSetupOpen] = useState(() => data.settings.pomodoro.permissionSetupStatus === 'pending')
   const [isPermissionSetupBusy, setIsPermissionSetupBusy] = useState(false)
@@ -163,9 +164,19 @@ export function AppShell() {
   }, [enableAmbienceAudio, initializePomodoroAudio])
 
   const handlePomodoroToggle = useCallback(() => {
-    if (!isPomodoroOpen && !pomodoro.alarmActive) openAmbience()
     setIsPomodoroOpen((open) => !open)
-  }, [isPomodoroOpen, openAmbience, pomodoro.alarmActive])
+  }, [])
+
+  const handlePomodoroClose = useCallback(() => {
+    if (pomodoro.alarmActive) return
+    setIsPomodoroOpen(false)
+  }, [pomodoro.alarmActive])
+
+  const handlePomodoroSettings = useCallback(() => {
+    if (pomodoro.alarmActive) return
+    setIsPomodoroOpen(false)
+    navigate('/settings#pomodoro-settings')
+  }, [navigate, pomodoro.alarmActive])
 
   const handlePermissionSetupOpenChange = useCallback((open: boolean) => {
     if (open) {
@@ -188,6 +199,23 @@ export function AppShell() {
   }, [data.settings.pomodoro.permissionSetupStatus])
 
   useEffect(() => {
+    if (pomodoro.alarmActive) setIsPomodoroOpen(true)
+  }, [pomodoro.alarmActive])
+
+  useEffect(() => {
+    document.title = getPomodoroDocumentTitle({
+      alarmActive: pomodoro.alarmActive,
+      isRunning: pomodoro.isRunning,
+      mode: pomodoro.mode,
+      remainingLabel: pomodoro.remainingLabel,
+    })
+  }, [pomodoro.alarmActive, pomodoro.isRunning, pomodoro.mode, pomodoro.remainingLabel])
+
+  useEffect(() => () => {
+      document.title = 'Study Reviewer'
+  }, [])
+
+  useEffect(() => {
     const openPermissionSetup = () => {
       permissionSetupClosingRef.current = false
       setIsPermissionSetupOpen(true)
@@ -204,12 +232,12 @@ export function AppShell() {
       if (!(event.target instanceof Element)) return
       if (event.target.closest('[data-pomodoro-launcher]')) return
       if (pomodoroPanelRef.current?.contains(event.target)) return
-      setIsPomodoroOpen(false)
+      handlePomodoroClose()
     }
 
     document.addEventListener('pointerdown', handleOutsidePointerDown)
     return () => document.removeEventListener('pointerdown', handleOutsidePointerDown)
-  }, [isPomodoroOpen])
+  }, [handlePomodoroClose, isPomodoroOpen])
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -259,10 +287,7 @@ export function AppShell() {
         )}
       >
           <div className="flex min-h-full w-full items-start justify-center lg:block lg:min-h-0 lg:flex-1 lg:overflow-x-hidden lg:overflow-y-auto lg:rounded-[2rem]">
-            <PomodoroTimer controller={pomodoro} ambience={ambience} onClose={() => setIsPomodoroOpen(false)} onOpenSettings={() => {
-              setIsPomodoroOpen(false)
-              navigate('/settings#pomodoro-settings')
-            }} />
+            <PomodoroTimer controller={pomodoro} ambience={ambience} onClose={handlePomodoroClose} onOpenSettings={handlePomodoroSettings} />
           </div>
       </div>
       <PomodoroPermissionDialog

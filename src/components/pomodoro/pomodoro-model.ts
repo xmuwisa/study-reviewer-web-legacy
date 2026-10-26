@@ -26,6 +26,12 @@ export function formatTimer(seconds: number) {
   return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
+export function getPomodoroDocumentTitle({ alarmActive, isRunning, mode, remainingLabel }: { alarmActive: boolean; isRunning: boolean; mode: PomodoroMode; remainingLabel: string }) {
+  if (alarmActive) return `🔔 ${mode === 'focus' ? 'Focus' : 'Break'} Complete · Study Reviewer`
+  if (!isRunning) return 'Study Reviewer'
+  return `${mode === 'focus' ? '🍅' : '☕'} ${remainingLabel} · Study Reviewer`
+}
+
 export function getIndicatorAngle(minutes: number) {
   return Math.min(MAX_INDICATOR_ANGLE, Math.max(0, (minutes / MAX_DURATION_MINUTES) * MAX_INDICATOR_ANGLE))
 }

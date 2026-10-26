@@ -5,6 +5,7 @@ import {
   getPermissionSetupFeedback,
   getPomodoroNotificationIdentity,
 } from '../src/lib/pomodoro-permissions'
+import { getPomodoroDocumentTitle } from '../src/components/pomodoro/pomodoro-model'
 
 test('audio setup reports blocked playback before configured playback', () => {
   expect(combineAudioInitializationResults('not-configured', 'blocked')).toBe('blocked')
@@ -31,4 +32,12 @@ test('notification identity stays stable for one completed session', () => {
   expect(getPomodoroNotificationIdentity(session)).toBe('focus:100:200')
   expect(getPomodoroNotificationIdentity({ ...session })).toBe('focus:100:200')
   expect(getPomodoroNotificationIdentity({ ...session, completedAt: 300 })).toBe('focus:100:200')
+})
+
+test('Pomodoro document title follows the timestamp-derived controller state', () => {
+  expect(getPomodoroDocumentTitle({ alarmActive: false, isRunning: true, mode: 'focus', remainingLabel: '24:35' })).toBe('🍅 24:35 · Study Reviewer')
+  expect(getPomodoroDocumentTitle({ alarmActive: false, isRunning: true, mode: 'short-break', remainingLabel: '04:35' })).toBe('☕ 04:35 · Study Reviewer')
+  expect(getPomodoroDocumentTitle({ alarmActive: true, isRunning: false, mode: 'focus', remainingLabel: '00:00' })).toBe('🔔 Focus Complete · Study Reviewer')
+  expect(getPomodoroDocumentTitle({ alarmActive: true, isRunning: false, mode: 'long-break', remainingLabel: '00:00' })).toBe('🔔 Break Complete · Study Reviewer')
+  expect(getPomodoroDocumentTitle({ alarmActive: false, isRunning: false, mode: 'focus', remainingLabel: '24:35' })).toBe('Study Reviewer')
 })

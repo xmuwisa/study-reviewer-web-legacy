@@ -208,8 +208,13 @@ export function PomodoroLauncher({ controller, audioBlocked, open, onClick, onEn
 }
 
 export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings }: { controller: PomodoroController; ambience: AmbienceController; onClose: () => void; onOpenSettings: () => void }) {
-  const { mode, duration, preciseDuration, isRunning, hasStarted, remainingSeconds, indicatorDurationMinutes, alarmActive, setDurationValue, handleModeChange, handleReset, handlePlayPause, handlePreciseDurationChange, commitPreciseDuration, stopAlarm, snoozeAlarm } = controller
+  const { mode, duration, preciseDuration, isRunning, hasStarted, remainingSeconds, indicatorDurationMinutes, alarmActive, alarmSoundAvailable, alarmSilenced, setDurationValue, handleModeChange, handleReset, handlePlayPause, handlePreciseDurationChange, commitPreciseDuration, toggleAlarmSound, stopAlarm, snoozeAlarm } = controller
   const indicatorAngle = hasStarted ? getCountdownAngle(remainingSeconds, indicatorDurationMinutes) : getIndicatorAngle(duration)
+
+  function handlePlayPauseClick() {
+    if (!isRunning && !hasStarted) ambience.startAutomatically()
+    handlePlayPause()
+  }
 
   return (
     <Card className="pomodoro-panel relative my-auto w-full max-w-3xl overflow-hidden rounded-none border-0 px-1 py-1 lg:my-0 lg:rounded-[2rem] lg:border">
@@ -224,7 +229,11 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings }:
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--pomodoro-muted)]">Session complete</p>
             <h2 id="pomodoro-alarm-title" className="font-heading text-2xl font-semibold tracking-tight text-[var(--pomodoro-ink)] sm:text-3xl">Time for a transition</h2>
           </div>
-          <div className="flex w-full max-w-sm gap-3">
+          <div className="flex w-full max-w-sm flex-wrap gap-3">
+            <Button type="button" variant="outline" className="min-w-0 flex-1 basis-full border-[color-mix(in_oklab,var(--pomodoro-ink)_15%,transparent)] bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)]" disabled={!alarmSoundAvailable} onClick={toggleAlarmSound}>
+              {alarmSilenced ? <Volume2 aria-hidden="true" data-icon="inline-start" /> : <VolumeX aria-hidden="true" data-icon="inline-start" />}
+              {alarmSilenced ? 'Resume alarm sound' : 'Silence alarm sound'}
+            </Button>
             <Button type="button" variant="secondary" className="min-w-0 flex-1 bg-[var(--pomodoro-ink)] font-semibold text-[var(--pomodoro-panel)] shadow-[0_8px_24px_-16px_rgb(0_0_0_/_0.9)] hover:bg-[var(--pomodoro-ink)]/90 hover:text-[var(--pomodoro-panel)]" onClick={stopAlarm}>Stop</Button>
             <Button type="button" className="min-w-0 flex-1 bg-[var(--pomodoro-control)] text-[var(--primary-foreground)] hover:bg-[var(--pomodoro-control)]/90" onClick={snoozeAlarm}>Snooze</Button>
           </div>
@@ -232,10 +241,10 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings }:
       )}
       <CardHeader className="relative w-full gap-2 px-5 pb-0 pt-6 text-left sm:px-8 sm:pt-7">
         <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 sm:top-5 sm:right-5">
-          <Button type="button" size="icon-sm" variant="ghost" aria-label="Close Pomodoro panel" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" onClick={onClose}>
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="Close Pomodoro panel" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" disabled={alarmActive} onClick={onClose}>
             <X aria-hidden="true" />
           </Button>
-          <Button type="button" size="icon-sm" variant="ghost" aria-label="Open Pomodoro settings" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" onClick={onOpenSettings}>
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="Open Pomodoro settings" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" disabled={alarmActive} onClick={onOpenSettings}>
             <Settings aria-hidden="true" />
           </Button>
           <Button
@@ -277,7 +286,7 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings }:
               type="button"
               variant="outline"
               className="min-w-0 flex-1 border-[color-mix(in_oklab,var(--pomodoro-ink)_15%,transparent)] bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] dark:bg-[var(--pomodoro-panel-raised)] dark:hover:bg-[var(--pomodoro-panel-raised)]"
-              onClick={handlePlayPause}
+              onClick={handlePlayPauseClick}
             >
               {isRunning ? <Pause aria-hidden="true" data-icon="inline-start" /> : <Play aria-hidden="true" data-icon="inline-start" />}
               {isRunning ? 'Pause' : 'Play'}

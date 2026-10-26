@@ -23,6 +23,8 @@ export type PomodoroController = {
   remainingLabel: string
   indicatorDurationMinutes: number
   alarmActive: boolean
+  alarmSoundAvailable: boolean
+  alarmSilenced: boolean
   audioBlocked: boolean
   modeLabel: string
   setDurationValue: (value: number) => void
@@ -32,6 +34,7 @@ export type PomodoroController = {
   handlePreciseDurationChange: (value: string) => void
   commitPreciseDuration: () => void
   initializeAudio: () => Promise<AudioInitializationResult>
+  toggleAlarmSound: () => void
   stopAlarm: () => void
   snoozeAlarm: () => void
 }
@@ -55,10 +58,12 @@ export function usePomodoroController(): PomodoroController {
   const alarmRetryCleanupRef = useRef<(() => void) | null>(null)
   const alarmRetrySourceRef = useRef<string | null>(null)
   const alarmPlayPendingRef = useRef(false)
+  const alarmSilencedRef = useRef(false)
   const alarmPlayRef = useRef<(source: string) => Promise<boolean>>(() => Promise.resolve(false))
   const alarmAnnouncementRef = useRef<string | null>(null)
   const notificationAnnouncementRef = useRef<string | null>(null)
   const [audioBlocked, setAudioBlocked] = useState(false)
+  const [alarmSilenced, setAlarmSilenced] = useState(false)
   const session = data.timer.activeSession
   const mode = data.timer.selectedMode
   const modeConfig = TIMER_MODES[mode]
@@ -119,6 +124,10 @@ export function usePomodoroController(): PomodoroController {
     alarmPlayPendingRef.current = true
     try {
       await audio.play()
+      if (alarmSilencedRef.current) {
+        audio.pause()
+        return true
+      }
       clearAlarmRetry()
       setAudioBlocked(false)
       return true
@@ -174,6 +183,8 @@ export function usePomodoroController(): PomodoroController {
     }
     alarmAudioRef.current = null
     alarmSourceRef.current = null
+    alarmSilencedRef.current = false
+    setAlarmSilenced(false)
     setAudioBlocked(false)
   }, [clearAlarmRetry])
 
@@ -213,6 +224,8 @@ export function usePomodoroController(): PomodoroController {
       return
     }
 
+    if (alarmSilenced) return
+
     const alarmIdentity = `${session?.mode}:${session?.startedAt}:${session?.endsAt ?? 'unknown'}:${selectedAlarm.src}`
     if (alarmAnnouncementRef.current !== alarmIdentity) {
       alarmAnnouncementRef.current = alarmIdentity
@@ -220,7 +233,7 @@ export function usePomodoroController(): PomodoroController {
     }
 
     void playAlarmAudio(selectedAlarm.src)
-  }, [alarmActive, data.settings.pomodoro.soundEnabled, permissionSetupStatus, playAlarmAudio, selectedAlarm.src, session?.completedAt, session?.endsAt, session?.mode, session?.startedAt, stopAlarmAudio])
+  }, [alarmActive, alarmSilenced, data.settings.pomodoro.soundEnabled, permissionSetupStatus, playAlarmAudio, selectedAlarm.src, session?.completedAt, session?.endsAt, session?.mode, session?.startedAt, stopAlarmAudio])
 
   useEffect(() => {
     if (!alarmActive) {
@@ -263,6 +276,23 @@ export function usePomodoroController(): PomodoroController {
     stopAlarmAudio()
     resetPomodoro()
   }
+
+  const toggleAlarmSound = useCallback(() => {
+    if (!alarmActive || permissionSetupStatus !== 'enabled' || !data.settings.pomodoro.soundEnabled || !selectedAlarm.src) return
+
+    if (alarmSilenced) {
+      alarmSilencedRef.current = false
+      setAlarmSilenced(false)
+      void playAlarmAudio(selectedAlarm.src)
+      return
+    }
+
+    clearAlarmRetry()
+    alarmPlayPendingRef.current = false
+    alarmAudioRef.current?.pause()
+    alarmSilencedRef.current = true
+    setAlarmSilenced(true)
+  }, [alarmActive, alarmSilenced, clearAlarmRetry, data.settings.pomodoro.soundEnabled, permissionSetupStatus, playAlarmAudio, selectedAlarm.src])
 
   function handlePlayPause() {
     if (alarmActive) return
@@ -319,6 +349,8 @@ export function usePomodoroController(): PomodoroController {
     remainingLabel: formatTimer(remainingSeconds),
     indicatorDurationMinutes: session ? data.timer.selectedDurationMinutes : duration,
     alarmActive,
+    alarmSoundAvailable: Boolean(permissionSetupStatus === 'enabled' && data.settings.pomodoro.soundEnabled && selectedAlarm.src),
+    alarmSilenced,
     audioBlocked,
     modeLabel: modeConfig.label,
     setDurationValue,
@@ -328,6 +360,7 @@ export function usePomodoroController(): PomodoroController {
     handlePreciseDurationChange,
     commitPreciseDuration,
     initializeAudio,
+    toggleAlarmSound,
     stopAlarm,
     snoozeAlarm,
   }

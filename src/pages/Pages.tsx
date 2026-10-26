@@ -1766,7 +1766,7 @@ export function SettingsPage() {
                 {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4 lg:h-full">
                   <FieldContent>
                     <FieldTitle>Automatically play ambience</FieldTitle>
-                    <FieldDescription>Play your selected ambience when you open Pomodoro.</FieldDescription>
+                    <FieldDescription>Play your selected ambience when you start a Pomodoro session.</FieldDescription>
                   </FieldContent>
                   <Toggle pressed={settings.pomodoro.autoPlayAmbience} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoPlayAmbience: pressed } })} aria-label="Automatically play ambience" size="sm">{settings.pomodoro.autoPlayAmbience ? 'On' : 'Off'}</Toggle>
                 </Field>}
@@ -1774,14 +1774,14 @@ export function SettingsPage() {
               {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
                 <FieldContent>
                   <FieldTitle>Sound alerts</FieldTitle>
-                  <FieldDescription>Sound remains off until you choose to enable it.</FieldDescription>
+                  <FieldDescription>Play your selected alarm when a Pomodoro session finishes.</FieldDescription>
                 </FieldContent>
                 <Toggle pressed={settings.pomodoro.soundEnabled} onPressedChange={(pressed) => savePreferences({ pomodoro: { soundEnabled: pressed } })} aria-label="Sound alerts" size="sm">{settings.pomodoro.soundEnabled ? 'On' : 'Off'}</Toggle>
               </Field>}
               <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
                 <FieldContent>
                   <FieldTitle>Browser notifications</FieldTitle>
-                  <FieldDescription>Notifications remain off until you choose to enable them.</FieldDescription>
+                  <FieldDescription>Show a system notification when a Pomodoro session finishes, if permitted by your browser.</FieldDescription>
                 </FieldContent>
                 <Toggle pressed={settings.pomodoro.notificationsEnabled} onPressedChange={(pressed) => savePreferences({ pomodoro: { notificationsEnabled: pressed } })} aria-label="Browser notifications" size="sm">{settings.pomodoro.notificationsEnabled ? 'On' : 'Off'}</Toggle>
               </Field>
