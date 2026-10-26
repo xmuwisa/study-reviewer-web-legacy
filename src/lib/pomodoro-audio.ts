@@ -1,9 +1,8 @@
-// Browser autoplay is intentionally deferred until the Electron desktop
-// migration. Keep the audio assets, preferences, and playback integration in
-// place so the desktop runtime can enable them without changing the model.
-export const WEB_AUTOMATIC_ALARM_AUDIO_ENABLED = false
-export const WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED = false
-export const WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE = false
+// Keep the audio assets, preferences, and playback integration centralized so
+// the web and desktop runtimes can share the same Pomodoro audio model.
+export const WEB_AUTOMATIC_ALARM_AUDIO_ENABLED = true
+export const WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED = true
+export const WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE = true
 
 export const POMODORO_ALARM_OPTIONS = [
   { value: 'none', label: 'None', src: null },
