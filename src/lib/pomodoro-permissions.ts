@@ -76,6 +76,18 @@ export function getPermissionSetupFeedback(
   return { kind: 'error' as const, message: 'Some sound and notification capabilities remain unavailable. Your current Pomodoro preferences were preserved.' }
 }
 
+export function getAudioSetupFeedback(audio: AudioInitializationResult) {
+  if (audio === 'blocked') {
+    return { kind: 'error' as const, message: 'Browser audio is blocked. Check the browser site sound setting and try Enable sound again.' }
+  }
+
+  if (audio === 'not-configured') {
+    return { kind: 'success' as const, message: 'Browser audio setup completed. Your current sound preferences were preserved.' }
+  }
+
+  return { kind: 'success' as const, message: 'Browser audio is ready. Notification permission is being handled independently by your browser.' }
+}
+
 export function getAudioRetryFeedback(audio: AudioInitializationResult) {
   if (audio === 'blocked') {
     return { kind: 'error' as const, message: 'Browser audio is still blocked. Check the browser site sound setting and try again.' }

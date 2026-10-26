@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { getPomodoroRemainingSeconds } from '@/lib/pomodoro'
-import { POMODORO_ALARM_END_EVENT, POMODORO_ALARM_OPTIONS, POMODORO_ALARM_START_EVENT, WEB_AUTOMATIC_ALARM_AUDIO_ENABLED } from '@/lib/pomodoro-audio'
+import { getPomodoroAlarmOption, POMODORO_ALARM_END_EVENT, POMODORO_ALARM_START_EVENT, WEB_AUTOMATIC_ALARM_AUDIO_ENABLED } from '@/lib/pomodoro-audio'
 import {
   getNotificationPermission,
   getPomodoroNotificationIdentity,
@@ -59,6 +59,7 @@ export function usePomodoroController(): PomodoroController {
   const alarmRetrySourceRef = useRef<string | null>(null)
   const alarmPlayPendingRef = useRef(false)
   const alarmSilencedRef = useRef(false)
+  const alarmActiveRef = useRef(false)
   const alarmPlayRef = useRef<(source: string) => Promise<boolean>>(() => Promise.resolve(false))
   const alarmAnnouncementRef = useRef<string | null>(null)
   const notificationAnnouncementRef = useRef<string | null>(null)
@@ -69,11 +70,12 @@ export function usePomodoroController(): PomodoroController {
   const modeConfig = TIMER_MODES[mode]
   const duration = data.settings.pomodoro[modeConfig.durationKey]
   const permissionSetupStatus = data.settings.pomodoro.permissionSetupStatus
-  const selectedAlarm = POMODORO_ALARM_OPTIONS.find((option) => option.value === data.settings.pomodoro.defaultAlarm) ?? POMODORO_ALARM_OPTIONS[0]
+  const selectedAlarm = getPomodoroAlarmOption(data.settings.pomodoro.defaultAlarm)
   const remainingSeconds = session ? getPomodoroRemainingSeconds(session, now) : duration * 60
   const alarmActive = Boolean(session && (session.status === 'completed' || (session.status === 'running' && remainingSeconds === 0)))
   const isRunning = Boolean(session?.status === 'running' && !alarmActive)
   const hasStarted = Boolean(session)
+  alarmActiveRef.current = alarmActive
 
   const clearAlarmRetry = useCallback(() => {
     alarmRetryCleanupRef.current?.()
@@ -149,6 +151,11 @@ export function usePomodoroController(): PomodoroController {
     audio.muted = true
     return audio.play().then(() => {
       if (alarmAudioRef.current !== audio) return false
+      if (alarmActiveRef.current) {
+        audio.currentTime = 0
+        audio.muted = false
+        return true
+      }
       audio.pause()
       audio.currentTime = 0
       audio.muted = false

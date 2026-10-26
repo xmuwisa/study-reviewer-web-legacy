@@ -2,10 +2,12 @@ import { expect, test } from 'bun:test'
 
 import {
   combineAudioInitializationResults,
+  getAudioSetupFeedback,
   getPermissionSetupFeedback,
   getPomodoroNotificationIdentity,
 } from '../src/lib/pomodoro-permissions'
 import { getPomodoroDocumentTitle } from '../src/components/pomodoro/pomodoro-model'
+import { getPomodoroAlarmOption } from '../src/lib/pomodoro-audio'
 
 test('audio setup reports blocked playback before configured playback', () => {
   expect(combineAudioInitializationResults('not-configured', 'blocked')).toBe('blocked')
@@ -19,6 +21,20 @@ test('permission feedback distinguishes disabled sound from blocked sound', () =
     message: 'Notifications are ready. Sound remains governed by your current Pomodoro preferences.',
   })
   expect(getPermissionSetupFeedback('blocked', 'granted').kind).toBe('error')
+})
+
+test('saved Happy Bells selection resolves to the shipped alarm asset', () => {
+  expect(getPomodoroAlarmOption('happy-bells-alarm')).toMatchObject({
+    label: 'Happy Bells',
+    src: '/audio/alarms/happy-bells-alarm.wav',
+  })
+})
+
+test('audio setup feedback can complete before notification permission resolves', () => {
+  expect(getAudioSetupFeedback('ready')).toEqual({
+    kind: 'success',
+    message: 'Browser audio is ready. Notification permission is being handled independently by your browser.',
+  })
 })
 
 test('notification identity stays stable for one completed session', () => {

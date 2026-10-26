@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   POMODORO_ALARM_END_EVENT,
   POMODORO_ALARM_START_EVENT,
-  POMODORO_AMBIENCE_OPTIONS,
+  getPomodoroAmbienceOption,
   WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED,
 } from '@/lib/pomodoro-audio'
 import type { AudioInitializationResult } from '@/lib/pomodoro-permissions'
@@ -35,7 +35,7 @@ export function useAmbienceController(): AmbienceController {
   const alarmSnapshotRef = useRef<AmbienceAlarmSnapshot | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioBlocked, setAudioBlocked] = useState(false)
-  const selectedAmbience = POMODORO_AMBIENCE_OPTIONS.find((option) => option.value === data.settings.pomodoro.defaultAmbience) ?? POMODORO_AMBIENCE_OPTIONS[0]
+  const selectedAmbience = getPomodoroAmbienceOption(data.settings.pomodoro.defaultAmbience)
   const source = selectedAmbience.src
   const isMuted = data.settings.pomodoro.ambienceMuted
   const autoPlay = data.settings.pomodoro.autoPlayAmbience

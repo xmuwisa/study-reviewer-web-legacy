@@ -15,6 +15,7 @@ import type { StorageNotice } from '@/lib/study-context'
 import {
   combineAudioInitializationResults,
   getAudioRetryFeedback,
+  getAudioSetupFeedback,
   getPermissionSetupFeedback,
   POMODORO_PERMISSION_SETUP_EVENT,
   requestNotificationPermission,
@@ -119,7 +120,7 @@ export function AppShell() {
   const pomodoro = usePomodoroController()
   const ambience = useAmbienceController()
   const { initializeAudio: initializePomodoroAudio } = pomodoro
-  const { audioBlocked: ambienceAudioBlocked, enableAudio: enableAmbienceAudio, initializeAudio: initializeAmbienceAudio } = ambience
+  const { audioBlocked: ambienceAudioBlocked, enableAudio: enableAmbienceAudio, initializeAudio: initializeAmbienceAudio, startAutomatically: startAmbienceAutomatically } = ambience
   const [isPomodoroOpen, setIsPomodoroOpen] = useState(false)
   const [isPermissionSetupOpen, setIsPermissionSetupOpen] = useState(() => data.settings.pomodoro.permissionSetupStatus === 'pending')
   const [isPermissionSetupBusy, setIsPermissionSetupBusy] = useState(false)
@@ -144,18 +145,19 @@ export function AppShell() {
     if (isPermissionSetupBusy) return
 
     setIsPermissionSetupBusy(true)
-    const [audioResults, notificationResult] = await Promise.all([
-      Promise.all([initializePomodoroAudio(), initializeAmbienceAudio()]),
-      requestNotificationPermission(),
-    ])
+    const notificationPromise = requestNotificationPermission()
+    const audioResults = await Promise.all([initializePomodoroAudio(), initializeAmbienceAudio()])
     const audioResult = combineAudioInitializationResults(...audioResults)
     const saved = updateSettings({ pomodoro: { permissionSetupStatus: 'enabled' } })
 
     closePermissionSetup()
     setIsPermissionSetupBusy(false)
     setPermissionSetupFeedback(saved
-      ? getPermissionSetupFeedback(audioResult, notificationResult)
+      ? getAudioSetupFeedback(audioResult)
       : { kind: 'error', message: 'Setup finished, but the setup choice could not be saved locally.' })
+    void notificationPromise.then((notificationResult) => {
+      if (saved) setPermissionSetupFeedback(getPermissionSetupFeedback(audioResult, notificationResult))
+    })
   }, [closePermissionSetup, initializeAmbienceAudio, initializePomodoroAudio, isPermissionSetupBusy, updateSettings])
 
   const handleEnableSound = useCallback(async () => {
@@ -164,8 +166,9 @@ export function AppShell() {
   }, [enableAmbienceAudio, initializePomodoroAudio])
 
   const handlePomodoroToggle = useCallback(() => {
+    if (!isPomodoroOpen && !pomodoro.alarmActive) startAmbienceAutomatically()
     setIsPomodoroOpen((open) => !open)
-  }, [])
+  }, [isPomodoroOpen, pomodoro.alarmActive, startAmbienceAutomatically])
 
   const handlePomodoroClose = useCallback(() => {
     if (pomodoro.alarmActive) return

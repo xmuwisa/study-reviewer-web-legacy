@@ -28,3 +28,11 @@ export const POMODORO_SNOOZE_OPTIONS = [5, 10, 15] as const
 export type PomodoroAlarmSelection = (typeof POMODORO_ALARM_OPTIONS)[number]['value']
 export type PomodoroAmbienceSelection = (typeof POMODORO_AMBIENCE_OPTIONS)[number]['value']
 export type PomodoroSnoozeMinutes = (typeof POMODORO_SNOOZE_OPTIONS)[number]
+
+export function getPomodoroAlarmOption(selection: PomodoroAlarmSelection) {
+  return POMODORO_ALARM_OPTIONS.find((option) => option.value === selection) ?? POMODORO_ALARM_OPTIONS[0]
+}
+
+export function getPomodoroAmbienceOption(selection: PomodoroAmbienceSelection) {
+  return POMODORO_AMBIENCE_OPTIONS.find((option) => option.value === selection) ?? POMODORO_AMBIENCE_OPTIONS[0]
+}

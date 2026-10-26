@@ -49,7 +49,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
-import { POMODORO_ALARM_OPTIONS, POMODORO_ALARM_START_EVENT, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
+import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_ALARM_START_EVENT, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
 import { POMODORO_PERMISSION_SETUP_EVENT } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 import { cn } from '@/lib/utils'
@@ -1532,8 +1532,8 @@ export function SettingsPage() {
     savePreferences({ pomodoro: { defaultAmbience: value as PomodoroAmbienceSelection } })
   }
 
-  const selectedAlarm = POMODORO_ALARM_OPTIONS.find((option) => option.value === settings.pomodoro.defaultAlarm) ?? POMODORO_ALARM_OPTIONS[0]
-  const selectedAmbience = POMODORO_AMBIENCE_OPTIONS.find((option) => option.value === settings.pomodoro.defaultAmbience) ?? POMODORO_AMBIENCE_OPTIONS[0]
+  const selectedAlarm = getPomodoroAlarmOption(settings.pomodoro.defaultAlarm)
+  const selectedAmbience = getPomodoroAmbienceOption(settings.pomodoro.defaultAmbience)
 
   useEffect(() => {
     if (location.hash !== '#pomodoro-settings') return
