@@ -20,7 +20,7 @@ export function PomodoroPermissionDialog({
         <DialogHeader>
           <DialogTitle>Enable Sound &amp; Notifications</DialogTitle>
           <DialogDescription>
-            For the best Pomodoro experience, enable sound and notifications. This allows Study Reviewer to automatically play your selected background ambience and alert you when a Pomodoro session finishes.
+            For the best Pomodoro experience, allow sound and notifications to play ambience automatically and receive timer alerts. You can request permissions later through Settings, subject to your browser&apos;s permissions.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
