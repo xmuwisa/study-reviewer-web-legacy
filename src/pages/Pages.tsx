@@ -333,7 +333,7 @@ function EntryList({
                               key={`${entry.id}-option-${index}`}
                               className={cn(
                                 'flex items-start gap-3 rounded-lg border border-border/70 bg-muted/35 px-3 py-2.5 text-card-foreground',
-                                !rightHidden && option.isCorrect && 'border-primary/30 bg-primary/5',
+                                !rightHidden && option.isCorrect && 'border-transparent bg-muted text-foreground',
                               )}
                             >
                               <span className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center', !rightHidden && 'text-primary')}>
