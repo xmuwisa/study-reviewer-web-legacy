@@ -115,7 +115,7 @@ export function EntryFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="!top-0 !left-0 !h-dvh !max-h-none !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-background overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:!top-1/2 lg:!left-1/2 lg:!h-auto lg:!max-h-[calc(100dvh-6rem)] lg:!max-w-lg lg:!-translate-x-1/2 lg:!-translate-y-1/2 lg:!rounded-xl lg:!bg-popover lg:p-6"
+          className="!top-0 !left-0 !h-dvh !max-h-none !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-background overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:!top-1/2 lg:!left-1/2 lg:!h-auto lg:!max-h-[calc(100dvh-6rem)] lg:!max-w-lg lg:!-translate-x-1/2 lg:!-translate-y-1/2 lg:!rounded-xl lg:p-6"
         showCloseButton={false}
       >
         <div className="flex min-h-full w-full items-start justify-center lg:block lg:min-h-0">
