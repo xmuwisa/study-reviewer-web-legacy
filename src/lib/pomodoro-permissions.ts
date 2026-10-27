@@ -1,7 +1,9 @@
 export const POMODORO_PERMISSION_SETUP_EVENT = 'pomodoro-permission-setup-requested'
 
 export type PomodoroPermissionSetupStatus = 'pending' | 'enabled' | 'dismissed'
-export type AudioInitializationResult = 'ready' | 'not-configured' | 'blocked'
+export type AudioInitializationResult = 'initialized' | 'not-configured' | 'blocked'
+export type AudioPlaybackResult = 'played' | 'not-configured' | 'blocked'
+export type AudioOperationResult = AudioInitializationResult | AudioPlaybackResult
 export type NotificationPermissionResult = 'granted' | 'denied' | 'default' | 'unsupported' | 'failed'
 
 export function getNotificationPermission(): Exclude<NotificationPermissionResult, 'failed'> {
@@ -42,10 +44,10 @@ export function getPomodoroNotificationIdentity(session: {
 }
 
 export function combineAudioInitializationResults(
-  ...results: AudioInitializationResult[]
+  ...results: AudioOperationResult[]
 ): AudioInitializationResult {
   if (results.some((result) => result === 'blocked')) return 'blocked'
-  if (results.some((result) => result === 'ready')) return 'ready'
+  if (results.some((result) => result === 'initialized' || result === 'played')) return 'initialized'
   return 'not-configured'
 }
 
@@ -58,7 +60,7 @@ export function getPermissionSetupFeedback(
   const notificationsUnavailable = notifications !== 'granted'
 
   if (!audioBlocked && !notificationsUnavailable && !audioNotConfigured) {
-    return { kind: 'success' as const, message: 'Sound and notifications are ready. Your current Pomodoro preferences were preserved.' }
+    return { kind: 'success' as const, message: 'Sound interaction and notifications are enabled. Audible playback will be checked when a sound starts.' }
   }
 
   if (!audioBlocked && !notificationsUnavailable && audioNotConfigured) {
@@ -70,7 +72,7 @@ export function getPermissionSetupFeedback(
   }
 
   if (!audioBlocked && notificationsUnavailable) {
-    return { kind: 'error' as const, message: 'Sound setup is ready, but browser notifications are unavailable or denied. Your current Pomodoro preferences were preserved.' }
+    return { kind: 'error' as const, message: 'Sound interaction was initialized, but browser notifications are unavailable or denied. Your current Pomodoro preferences were preserved.' }
   }
 
   return { kind: 'error' as const, message: 'Some sound and notification capabilities remain unavailable. Your current Pomodoro preferences were preserved.' }
@@ -85,10 +87,10 @@ export function getAudioSetupFeedback(audio: AudioInitializationResult) {
     return { kind: 'success' as const, message: 'Browser audio setup completed. Your current sound preferences were preserved.' }
   }
 
-  return { kind: 'success' as const, message: 'Audio controls are ready. Browser playback will be checked when a sound starts.' }
+  return { kind: 'success' as const, message: 'Audio interaction was initialized. Audible playback will be checked when a sound starts.' }
 }
 
-export function getAudioRetryFeedback(audio: AudioInitializationResult) {
+export function getAudioRetryFeedback(audio: AudioOperationResult) {
   if (audio === 'blocked') {
     return { kind: 'error' as const, message: 'Browser audio is still blocked. Check the browser site sound setting and try again.' }
   }
@@ -97,5 +99,9 @@ export function getAudioRetryFeedback(audio: AudioInitializationResult) {
     return { kind: 'success' as const, message: 'No audio was started because your current sound preferences are disabled or no sound is selected.' }
   }
 
-  return { kind: 'success' as const, message: 'Browser audio is ready. Your current sound preferences were preserved.' }
+  if (audio === 'played') {
+    return { kind: 'success' as const, message: 'Browser audio played successfully. Your current sound preferences were preserved.' }
+  }
+
+  return { kind: 'success' as const, message: 'Audio interaction was initialized. Your current sound preferences were preserved.' }
 }

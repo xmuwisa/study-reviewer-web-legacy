@@ -1,8 +1,7 @@
-import type { AudioInitializationResult } from './pomodoro-permissions'
+import type { AudioPlaybackResult } from './pomodoro-permissions'
+import { PomodoroAlarmPlayer, type AlarmAudioFactory } from './pomodoro-alarm-player'
 
 export type PomodoroPreviewKind = 'alarm' | 'ambience'
-export type AudioPlaybackResult = AudioInitializationResult
-
 export type PomodoroAudioSnapshot = {
   ambience: {
     source: string | null
@@ -29,7 +28,7 @@ type AmbienceResumeRequest = {
   wasPlaying: boolean
 }
 
-type AudioFactory = (source: string) => HTMLAudioElement
+type AudioFactory = AlarmAudioFactory
 
 const INITIAL_SNAPSHOT: PomodoroAudioSnapshot = {
   ambience: { source: null, isPlaying: false, isMuted: false, blocked: false },
@@ -51,18 +50,17 @@ export class PomodoroAudioManager {
   private ambiencePlayPromise: Promise<AudioPlaybackResult> | null = null
   private ambienceGeneration = 0
   private ambienceSuspension: AmbienceResumeRequest | null = null
-  private alarmAudio: HTMLAudioElement | null = null
-  private alarmSource: string | null = null
-  private alarmErrorCleanup: (() => void) | null = null
-  private alarmPlayPromise: Promise<AudioPlaybackResult> | null = null
-  private alarmGeneration = 0
   private alarmActive = false
+  private readonly alarmPlayer: PomodoroAlarmPlayer
   private previewAudio: HTMLAudioElement | null = null
   private previewErrorCleanup: (() => void) | null = null
   private previewGeneration = 0
 
   constructor(audioFactory: AudioFactory = createBrowserAudio) {
     this.audioFactory = audioFactory
+    this.alarmPlayer = new PomodoroAlarmPlayer(audioFactory, (alarm) => {
+      this.updateSnapshot({ ...this.snapshot, alarm })
+    })
   }
 
   subscribe = (listener: () => void) => {
@@ -118,13 +116,6 @@ export class PomodoroAudioManager {
     this.updateSnapshot({
       ...this.snapshot,
       ambience: { ...this.snapshot.ambience, ...patch },
-    })
-  }
-
-  private setAlarmState(patch: Partial<PomodoroAudioSnapshot['alarm']>) {
-    this.updateSnapshot({
-      ...this.snapshot,
-      alarm: { ...this.snapshot.alarm, ...patch },
     })
   }
 
@@ -194,14 +185,14 @@ export class PomodoroAudioManager {
     if (this.ambiencePlayPromise) return this.ambiencePlayPromise
     if (!audio.paused && !audio.ended) {
       this.setAmbienceState({ isPlaying: true, blocked: false })
-      return Promise.resolve<AudioPlaybackResult>('ready')
+      return Promise.resolve<AudioPlaybackResult>('played')
     }
 
     const playback = audio.play().then(() => {
       if (this.ambienceAudio === audio && this.ambienceGeneration === generation) {
         this.setAmbienceState({ isPlaying: !audio.paused, blocked: false })
       }
-      return 'ready' as const
+      return 'played' as const
     }).catch(() => {
       if (this.ambienceAudio === audio && this.ambienceGeneration === generation) {
         this.setAmbienceState({ isPlaying: false, blocked: true })
@@ -262,59 +253,11 @@ export class PomodoroAudioManager {
     return request
   }
 
-  private prepareAlarm(source: string) {
-    if (this.alarmAudio && this.alarmSource === source) return this.alarmAudio
-
-    this.releaseAudio(this.alarmAudio, this.alarmErrorCleanup)
-    this.alarmGeneration += 1
-    this.alarmPlayPromise = null
-    const prepared = this.createAudio(source, true, () => {
-      if (this.alarmAudio !== prepared.audio) return
-      this.alarmGeneration += 1
-      this.alarmPlayPromise = null
-      prepared.audio.pause()
-      this.setAlarmState({ isPlaying: false, blocked: true })
-    })
-    this.alarmAudio = prepared.audio
-    this.alarmSource = source
-    this.alarmErrorCleanup = prepared.cleanup
-    this.setAlarmState({ source, isPlaying: false, silenced: false, blocked: false })
-    return prepared.audio
+  initializeAlarmPlayback(source: string | null) {
+    return this.alarmPlayer.initialize(source)
   }
 
-  prepareAlarmAudio(source: string | null) {
-    if (!source) return false
-    this.prepareAlarm(source)
-    return true
-  }
-
-  private playAlarmAudio(audio: HTMLAudioElement, generation: number) {
-    audio.muted = false
-    if (this.alarmPlayPromise) return this.alarmPlayPromise
-    if (!audio.paused && !audio.ended) {
-      this.setAlarmState({ isPlaying: true, blocked: false })
-      return Promise.resolve<AudioPlaybackResult>('ready')
-    }
-
-    const playback = audio.play().then(() => {
-      if (this.alarmAudio === audio && this.alarmGeneration === generation) {
-        this.setAlarmState({ isPlaying: !audio.paused, blocked: false })
-      }
-      return 'ready' as const
-    }).catch(() => {
-      if (this.alarmAudio === audio && this.alarmGeneration === generation) {
-        this.setAlarmState({ isPlaying: false, blocked: true })
-      }
-      return 'blocked' as const
-    })
-    this.alarmPlayPromise = playback
-    void playback.finally(() => {
-      if (this.alarmPlayPromise === playback) this.alarmPlayPromise = null
-    })
-    return playback
-  }
-
-  beginAlarm(source: string | null): Promise<AudioPlaybackResult> {
+  beginAlarm(source: string | null, sessionKey: string | null = null): Promise<AudioPlaybackResult> {
     if (!source) return Promise.resolve('not-configured')
 
     if (!this.alarmActive) {
@@ -322,46 +265,26 @@ export class PomodoroAudioManager {
       this.suspendAmbience(previewRequest)
       this.alarmActive = true
     }
-    const audio = this.prepareAlarm(source)
-    this.setAlarmState({ active: true })
-    if (this.snapshot.alarm.source === source && !audio.paused && !audio.ended) {
-      return Promise.resolve('ready')
-    }
 
-    if (this.snapshot.alarm.source === source && audio.paused) audio.currentTime = 0
-    this.alarmGeneration += 1
-    this.setAlarmState({ silenced: false })
-    return this.playAlarmAudio(audio, this.alarmGeneration)
+    return this.alarmPlayer.play(source, sessionKey)
   }
 
   retryAlarm(source: string | null) {
-    if (!source || !this.alarmActive) return Promise.resolve('not-configured' as const)
-    const audio = this.prepareAlarm(source)
-    return this.playAlarmAudio(audio, this.alarmGeneration)
+    if (!this.alarmActive) return Promise.resolve('not-configured' as const)
+    return this.alarmPlayer.retry(source)
   }
 
   silenceAlarm() {
-    if (!this.alarmAudio) return
-    this.alarmGeneration += 1
-    this.alarmPlayPromise = null
-    this.alarmAudio.pause()
-    this.setAlarmState({ isPlaying: false, silenced: true })
+    this.alarmPlayer.silence()
   }
 
   resumeAlarm(source: string | null) {
-    if (!source || !this.alarmActive) return Promise.resolve('not-configured' as const)
-    const audio = this.prepareAlarm(source)
-    this.setAlarmState({ silenced: false })
-    return this.playAlarmAudio(audio, this.alarmGeneration)
+    return this.alarmPlayer.resume(source)
   }
 
   endAlarm(currentAmbienceSource: string | null = null) {
     this.alarmActive = false
-    this.alarmGeneration += 1
-    this.alarmPlayPromise = null
-    this.alarmAudio?.pause()
-    if (this.alarmAudio) this.alarmAudio.currentTime = 0
-    this.setAlarmState({ active: false, isPlaying: false, silenced: false })
+    this.alarmPlayer.stop()
 
     const request = this.ambienceSuspension
     this.ambienceSuspension = null
@@ -397,7 +320,7 @@ export class PomodoroAudioManager {
       await prepared.audio.play()
       if (this.previewAudio !== prepared.audio || this.previewGeneration !== generation) return 'blocked' as const
       this.setPreviewState({ isPlaying: true })
-      return 'ready' as const
+      return 'played' as const
     } catch {
       if (this.previewAudio === prepared.audio && this.previewGeneration === generation) {
         this.setPreviewState({ isPlaying: false })

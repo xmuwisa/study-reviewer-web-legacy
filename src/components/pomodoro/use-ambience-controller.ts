@@ -2,7 +2,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
 import { getPomodoroAmbienceOption } from '@/lib/pomodoro-audio'
 import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
-import type { AudioInitializationResult } from '@/lib/pomodoro-permissions'
+import type { AudioInitializationResult, AudioPlaybackResult } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 
 export type AmbienceController = {
@@ -12,7 +12,7 @@ export type AmbienceController = {
   audioBlocked: boolean
   toggle: () => void
   initializeAudio: () => Promise<AudioInitializationResult>
-  enableAudio: () => Promise<AudioInitializationResult>
+  enableAudio: () => Promise<AudioPlaybackResult>
 }
 
 export function useAmbienceController(): AmbienceController {
@@ -46,10 +46,10 @@ export function useAmbienceController(): AmbienceController {
   }, [isMuted, isPlaying, source, updateSettings])
 
   const initializeAudio = useCallback(async (): Promise<AudioInitializationResult> => {
-    return pomodoroAudioManager.prepareAmbienceAudio(source, isMuted) ? 'ready' : 'not-configured'
+    return pomodoroAudioManager.prepareAmbienceAudio(source, isMuted) ? 'initialized' : 'not-configured'
   }, [isMuted, source])
 
-  const enableAudio = useCallback(async (): Promise<AudioInitializationResult> => {
+  const enableAudio = useCallback(async (): Promise<AudioPlaybackResult> => {
     return pomodoroAudioManager.startAmbience(source, isMuted)
   }, [isMuted, source])
 

@@ -89,24 +89,73 @@ test('failed ambience playback is visible and succeeds on an explicit retry', as
   expect(await retryManager.startAmbience('/audio/ambience/forest-birds-ambience.wav', false)).toBe('blocked')
   expect(retryManager.getSnapshot().ambience.blocked).toBe(true)
 
-  expect(await retryManager.retryAmbience('/audio/ambience/forest-birds-ambience.wav', false)).toBe('ready')
+  expect(await retryManager.retryAmbience('/audio/ambience/forest-birds-ambience.wav', false)).toBe('played')
   expect(retryManager.getSnapshot().ambience.isPlaying).toBe(true)
   expect(manager.getSnapshot().ambience.source).toBeNull()
+})
+
+test('alarm initialization uses the user interaction without claiming audible readiness', async () => {
+  const { audios, manager } = createManager()
+  const source = '/audio/alarms/happy-bells-alarm.wav'
+
+  expect(await manager.initializeAlarmPlayback(source)).toBe('initialized')
+  expect(audios[0]?.playCalls).toBe(1)
+  expect(audios[0]?.paused).toBe(true)
+  expect(manager.getSnapshot().alarm.active).toBe(false)
+  expect(manager.getSnapshot().alarm.isPlaying).toBe(false)
+
+  expect(await manager.initializeAlarmPlayback(source)).toBe('initialized')
+  expect(audios[0]?.playCalls).toBe(1)
 })
 
 test('consecutive alarms reuse the persistent alarm element without priming', async () => {
   const { audios, manager } = createManager()
 
-  expect(manager.prepareAlarmAudio('/audio/alarms/happy-bells-alarm.wav')).toBe(true)
-  expect(audios[0]?.playCalls).toBe(0)
-
-  await manager.beginAlarm('/audio/alarms/happy-bells-alarm.wav')
+  await manager.beginAlarm('/audio/alarms/happy-bells-alarm.wav', 'focus:one')
   manager.endAlarm()
-  await manager.beginAlarm('/audio/alarms/happy-bells-alarm.wav')
+  await manager.beginAlarm('/audio/alarms/happy-bells-alarm.wav', 'focus:two')
 
   expect(audios).toHaveLength(1)
   expect(audios[0]?.playCalls).toBe(2)
   expect(manager.getSnapshot().alarm.isPlaying).toBe(true)
+})
+
+test('repeated completion events for one session do not restart the alarm', async () => {
+  const { audios, manager } = createManager()
+  const source = '/audio/alarms/happy-bells-alarm.wav'
+
+  await manager.beginAlarm(source, 'focus:one')
+  await manager.beginAlarm(source, 'focus:one')
+
+  expect(audios).toHaveLength(1)
+  expect(audios[0]?.playCalls).toBe(1)
+})
+
+test('rejected alarm playback remains retryable', async () => {
+  const alarmAudio = new FakeAudio('/audio/alarms/happy-bells-alarm.wav')
+  const manager = new PomodoroAudioManager(() => alarmAudio as unknown as HTMLAudioElement)
+
+  alarmAudio.rejectNextPlay = true
+  expect(await manager.beginAlarm('/audio/alarms/happy-bells-alarm.wav', 'focus:one')).toBe('blocked')
+  expect(manager.getSnapshot().alarm.blocked).toBe(true)
+
+  expect(await manager.retryAlarm('/audio/alarms/happy-bells-alarm.wav')).toBe('played')
+  expect(manager.getSnapshot().alarm.isPlaying).toBe(true)
+})
+
+test('ending an alarm stops playback for Stop and Snooze flows', async () => {
+  const { audios, manager } = createManager()
+  const source = '/audio/alarms/happy-bells-alarm.wav'
+
+  await manager.beginAlarm(source, 'focus:one')
+  manager.endAlarm()
+  expect(audios[0]?.paused).toBe(true)
+  expect(manager.getSnapshot().alarm.active).toBe(false)
+
+  await manager.beginAlarm(source, 'focus:two')
+  manager.endAlarm()
+  expect(audios[0]?.paused).toBe(true)
+  expect(manager.getSnapshot().alarm.active).toBe(false)
 })
 
 test('a blocked alarm can be retried without losing ambience restoration', async () => {
@@ -124,7 +173,7 @@ test('a blocked alarm can be retried without losing ambience restoration', async
   alarmAudio.rejectNextPlay = true
 
   expect(await retryManager.beginAlarm('/audio/alarms/happy-bells-alarm.wav')).toBe('blocked')
-  expect(await retryManager.retryAlarm('/audio/alarms/happy-bells-alarm.wav')).toBe('ready')
+  expect(await retryManager.retryAlarm('/audio/alarms/happy-bells-alarm.wav')).toBe('played')
   retryManager.endAlarm()
   await Promise.resolve()
 
