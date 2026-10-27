@@ -5,7 +5,6 @@ import {
   BookOpenCheck,
   Check,
   CheckCircle2,
-  CircleX,
   ChevronsDown,
   ChevronLeft,
   ChevronRight,
@@ -98,6 +97,7 @@ function PageHeading({ title, description }: { title: string; description: strin
 }
 
 const LIST_REVEAL_BUTTON_CLASS = 'h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl p-5 text-left text-base font-normal leading-relaxed'
+const QUESTION_OPTIONS_INCORRECT_FEEDBACK_CLASS = 'bg-destructive/20 text-destructive'
 
 function QuestionOptionRow({ option, isRevealed }: { option: EntryOption; isRevealed: boolean }) {
   const isCorrectAndRevealed = isRevealed && option.isCorrect
@@ -865,7 +865,7 @@ function FlashcardMode({
                     : option.isCorrect
                       ? 'border-accent/60 bg-accent/30 text-accent-foreground'
                       : isSelected
-                        ? 'border-destructive/70 bg-destructive/25 text-foreground'
+                        ? cn('border-destructive/70', QUESTION_OPTIONS_INCORRECT_FEEDBACK_CLASS)
                         : 'border-border/70 bg-background/20 text-foreground'
 
                 return (
@@ -906,11 +906,10 @@ function FlashcardMode({
               aria-live="polite"
               className={cn(
                 'flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-base font-semibold',
-                questionOptionsResult ? 'bg-accent text-accent-foreground' : 'bg-destructive text-destructive-foreground',
+                questionOptionsResult ? 'bg-accent text-accent-foreground' : QUESTION_OPTIONS_INCORRECT_FEEDBACK_CLASS,
               )}
             >
-              {questionOptionsResult ? <CheckCircle2 aria-hidden="true" data-icon="inline-start" /> : <CircleX aria-hidden="true" data-icon="inline-start" />}
-              {questionOptionsResult ? 'Correct' : 'Incorrect'}
+              {questionOptionsResult ? 'CORRECT' : 'INCORRECT'}
             </div>
           )}
           {questionOptionsResult !== null && currentEntry.explanation && (
@@ -923,9 +922,9 @@ function FlashcardMode({
         {showQuestionOptionsScrollHint && (
           <Button
             type="button"
-            variant="secondary"
-            size="icon-xs"
-            className="flashcard-scroll-hint absolute right-4 bottom-3 rounded-full bg-card/95 text-foreground shadow-md ring-1 ring-border hover:bg-muted"
+            variant="ghost"
+            size="icon"
+            className="flashcard-scroll-hint absolute right-4 bottom-3 bg-transparent text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground [&_svg]:size-5"
             aria-label="Scroll to the bottom of the options"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
