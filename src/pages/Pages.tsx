@@ -3,6 +3,7 @@ import {
   ArrowDownAZ,
   ArrowUpRight,
   BookOpenCheck,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -64,7 +65,16 @@ import {
 } from '@/lib/study-operations'
 
 const EMPTY_FORM_VALUES: CollectionFormValues = { name: '', description: '' }
-const EMPTY_ENTRY_FORM_VALUES: EntryFormValues = { type: 'question-answer', question: '', answer: '' }
+const EMPTY_ENTRY_FORM_VALUES: EntryFormValues = {
+  type: 'question-answer',
+  question: '',
+  answer: '',
+  options: [
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false },
+  ],
+  explanation: '',
+}
 
 function SectionLabel({ children }: { children: string }) {
   return <p className="text-base font-medium text-muted-foreground">{children}</p>
@@ -279,8 +289,9 @@ function EntryList({
       {entries.map((entry) => {
         const leftHidden = hiddenLeft.has(entry.id)
         const rightHidden = hiddenRight.has(entry.id)
+        const isQuestionOptions = entry.type === 'question-options'
         const leftLabel = entry.type === 'term-definition' ? 'Term' : 'Question'
-        const rightLabel = entry.type === 'term-definition' ? 'Definition' : 'Answer'
+        const rightLabel = entry.type === 'term-definition' ? 'Definition' : isQuestionOptions ? 'Options' : 'Answer'
 
         return (
           <Card key={entry.id} className="relative overflow-hidden bg-transparent py-0">
@@ -307,12 +318,33 @@ function EntryList({
                     <Button
                       type="button"
                       variant="ghost"
-                      className="h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20"
+                      className={cn('h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20', isQuestionOptions && 'items-stretch')}
                       aria-expanded={!rightHidden}
                       aria-label={`${rightHidden ? 'Reveal' : 'Hide'} ${rightLabel.toLowerCase()} for ${entry.question}`}
                       onClick={() => onToggleRight(entry.id)}
                     >
-                      {rightHidden ? <span className="text-muted-foreground">{rightLabel} hidden · Reveal</span> : <span className="whitespace-pre-wrap">{entry.answer}</span>}
+                      {isQuestionOptions ? (
+                        <div className="flex w-full flex-col gap-3">
+                          {(entry.options ?? []).map((option, index) => (
+                            <div key={`${entry.id}-option-${index}`} className="flex items-start gap-3 rounded-lg bg-muted/35 px-3 py-2.5">
+                              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center text-primary">
+                                {!rightHidden && option.isCorrect && <Check aria-label="Correct option" className="size-4" />}
+                              </span>
+                              <span className="whitespace-pre-wrap">{option.text}</span>
+                            </div>
+                          ))}
+                          {!rightHidden && entry.explanation && (
+                            <div className="border-t border-border/70 pt-3 text-muted-foreground">
+                              <span className="font-semibold text-foreground">Explanation: </span>
+                              <span className="whitespace-pre-wrap">{entry.explanation}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : rightHidden ? (
+                        <span className="text-muted-foreground">{rightLabel} hidden · Reveal</span>
+                      ) : (
+                        <span className="whitespace-pre-wrap">{entry.answer}</span>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -347,7 +379,7 @@ function FlashcardMode({
   frontByEntryType,
 }: {
   entries: Entry[]
-  frontByEntryType: Record<Entry['type'], FlashcardFrontSide>
+  frontByEntryType: Partial<Record<Entry['type'], FlashcardFrontSide>>
 }) {
   const entryIds = useMemo(() => entries.map((entry) => entry.id), [entries])
   const entryIdentity = entryIds.join('|')
@@ -1419,7 +1451,13 @@ export function TopicStudyPage() {
 
       <EntryFormDialog
         open={formOpen}
-        initialValues={editingEntry ? { type: editingEntry.type, question: editingEntry.question, answer: editingEntry.answer } : EMPTY_ENTRY_FORM_VALUES}
+        initialValues={editingEntry ? {
+          type: editingEntry.type,
+          question: editingEntry.question,
+          answer: editingEntry.answer,
+          options: editingEntry.options ?? EMPTY_ENTRY_FORM_VALUES.options,
+          explanation: editingEntry.explanation ?? '',
+        } : EMPTY_ENTRY_FORM_VALUES}
         allowCopyPaste={data.settings.allowCopyPaste}
         spellcheck={data.settings.spellcheck}
         onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingEntry(null) }}

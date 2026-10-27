@@ -1,6 +1,9 @@
 import { useEffect, useState, type ClipboardEvent } from 'react'
 
+import { Plus, Trash2 } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -10,14 +13,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import type { EntryType } from '@/lib/study-data'
+import type { EntryOption, EntryType } from '@/lib/study-data'
 
 export type EntryFormValues = {
   type: EntryType
   question: string
   answer: string
+  options: EntryOption[]
+  explanation: string
 }
 
 type EntryFormDialogProps = {
@@ -29,7 +35,16 @@ type EntryFormDialogProps = {
   onSubmit: (values: EntryFormValues) => boolean
 }
 
-const EMPTY_ENTRY_VALUES: EntryFormValues = { type: 'question-answer', question: '', answer: '' }
+const EMPTY_ENTRY_VALUES: EntryFormValues = {
+  type: 'question-answer',
+  question: '',
+  answer: '',
+  options: [
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false },
+  ],
+  explanation: '',
+}
 
 export function EntryFormDialog({
   open,
@@ -42,14 +57,16 @@ export function EntryFormDialog({
   const [values, setValues] = useState(initialValues)
   const [questionError, setQuestionError] = useState<string | null>(null)
   const [answerError, setAnswerError] = useState<string | null>(null)
+  const [optionsError, setOptionsError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const isEditing = Boolean(initialValues.question || initialValues.answer)
   const isTermDefinition = values.type === 'term-definition'
+  const isQuestionOptions = values.type === 'question-options'
   const leftLabel = isTermDefinition ? 'Term' : 'Question'
   const rightLabel = isTermDefinition ? 'Definition' : 'Answer'
-  const entryTypeLabel = isTermDefinition ? 'term and definition' : 'question and answer'
+  const entryTypeLabel = isTermDefinition ? 'term and definition' : isQuestionOptions ? 'question and options' : 'question and answer'
 
-  function preventClipboardAction(event: ClipboardEvent<HTMLTextAreaElement>) {
+  function preventClipboardAction(event: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
     if (!allowCopyPaste) event.preventDefault()
   }
 
@@ -58,6 +75,7 @@ export function EntryFormDialog({
       setValues(initialValues)
       setQuestionError(null)
       setAnswerError(null)
+      setOptionsError(null)
       setSaveError(null)
     }
   }, [initialValues, open])
@@ -67,13 +85,24 @@ export function EntryFormDialog({
     const question = values.question.trim()
     const answer = values.answer.trim()
     const nextQuestionError = question ? null : 'Enter a question or term.'
-    const nextAnswerError = answer ? null : 'Enter an answer or explanation.'
+    const nextAnswerError = isQuestionOptions ? null : answer ? null : 'Enter an answer or explanation.'
+    const options = values.options.map((option) => ({ text: option.text.trim(), isCorrect: option.isCorrect }))
+    const nextOptionsError = isQuestionOptions
+      ? options.length < 2 || options.length > 6
+        ? 'Add between 2 and 6 options.'
+        : options.some((option) => !option.text)
+          ? 'Enter text for every option.'
+          : options.every((option) => !option.isCorrect)
+            ? 'Mark at least one option as correct.'
+            : null
+      : null
 
     setQuestionError(nextQuestionError)
     setAnswerError(nextAnswerError)
-    if (nextQuestionError || nextAnswerError) return
+    setOptionsError(nextOptionsError)
+    if (nextQuestionError || nextAnswerError || nextOptionsError) return
 
-    const saved = onSubmit({ type: values.type, question, answer })
+    const saved = onSubmit({ type: values.type, question, answer, options, explanation: values.explanation.trim() })
     if (!saved) {
       setSaveError('This entry could not be saved. Check local storage availability and try again.')
       return
@@ -99,7 +128,7 @@ export function EntryFormDialog({
               <Select
                 value={values.type}
                 onValueChange={(value) => {
-                  if (value === 'question-answer' || value === 'term-definition') {
+                  if (value === 'question-answer' || value === 'term-definition' || value === 'question-options') {
                     setValues((current) => ({ ...current, type: value }))
                   }
                 }}
@@ -111,6 +140,7 @@ export function EntryFormDialog({
                   <SelectGroup>
                     <SelectItem value="question-answer">Question &amp; Answer</SelectItem>
                     <SelectItem value="term-definition">Term &amp; Definition</SelectItem>
+                    <SelectItem value="question-options">Question &amp; Options</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -134,23 +164,93 @@ export function EntryFormDialog({
               <FieldError>{questionError}</FieldError>
             </Field>
 
-            <Field data-invalid={Boolean(answerError)}>
-              <FieldLabel htmlFor="entry-answer">{rightLabel}</FieldLabel>
-              <Textarea
-                id="entry-answer"
-                className="border-0 bg-muted/45"
-                aria-invalid={Boolean(answerError)}
-                spellCheck={spellcheck}
-                onCopy={preventClipboardAction}
-                onCut={preventClipboardAction}
-                onPaste={preventClipboardAction}
-                value={values.answer}
-                onChange={(event) => setValues((current) => ({ ...current, answer: event.target.value }))}
-                placeholder={isTermDefinition ? 'Write the definition you want to remember' : 'Write the explanation you want to remember'}
-                rows={5}
-              />
-              <FieldError>{answerError}</FieldError>
-            </Field>
+            {isQuestionOptions ? (
+              <Field data-invalid={Boolean(optionsError)}>
+                <FieldLabel>Options</FieldLabel>
+                <div className="flex flex-col gap-3">
+                  {values.options.map((option, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Checkbox
+                        checked={option.isCorrect}
+                        onCheckedChange={(checked) => setValues((current) => ({
+                          ...current,
+                          options: current.options.map((currentOption, currentIndex) => currentIndex === index ? { ...currentOption, isCorrect: checked === true } : currentOption),
+                        }))}
+                        aria-label={`Mark option ${index + 1} as correct`}
+                      />
+                      <Input
+                        className="border-0 bg-muted/45"
+                        aria-label={`Option ${index + 1}`}
+                        aria-invalid={Boolean(optionsError && !option.text.trim())}
+                        spellCheck={spellcheck}
+                        onCopy={preventClipboardAction}
+                        onCut={preventClipboardAction}
+                        onPaste={preventClipboardAction}
+                        value={option.text}
+                        onChange={(event) => setValues((current) => ({
+                          ...current,
+                          options: current.options.map((currentOption, currentIndex) => currentIndex === index ? { ...currentOption, text: event.target.value } : currentOption),
+                        }))}
+                        placeholder={`Option ${index + 1}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Remove option ${index + 1}`}
+                        disabled={values.options.length <= 2}
+                        onClick={() => setValues((current) => ({ ...current, options: current.options.filter((_, currentIndex) => currentIndex !== index) }))}
+                      >
+                        <Trash2 aria-hidden="true" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={values.options.length >= 6}
+                    onClick={() => setValues((current) => ({ ...current, options: [...current.options, { text: '', isCorrect: false }] }))}
+                  >
+                    <Plus aria-hidden="true" data-icon="inline-start" /> Add option
+                  </Button>
+                  <FieldError>{optionsError}</FieldError>
+                </div>
+                <FieldLabel htmlFor="entry-explanation">Explanation <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
+                <Textarea
+                  id="entry-explanation"
+                  className="border-0 bg-muted/45"
+                  spellCheck={spellcheck}
+                  onCopy={preventClipboardAction}
+                  onCut={preventClipboardAction}
+                  onPaste={preventClipboardAction}
+                  value={values.explanation}
+                  onChange={(event) => setValues((current) => ({ ...current, explanation: event.target.value }))}
+                  placeholder="Optional explanation"
+                  rows={3}
+                />
+              </Field>
+            ) : (
+              <Field data-invalid={Boolean(answerError)}>
+                <FieldLabel htmlFor="entry-answer">{rightLabel}</FieldLabel>
+                <Textarea
+                  id="entry-answer"
+                  className="border-0 bg-muted/45"
+                  aria-invalid={Boolean(answerError)}
+                  spellCheck={spellcheck}
+                  onCopy={preventClipboardAction}
+                  onCut={preventClipboardAction}
+                  onPaste={preventClipboardAction}
+                  value={values.answer}
+                  onChange={(event) => setValues((current) => ({ ...current, answer: event.target.value }))}
+                  placeholder={isTermDefinition ? 'Write the definition you want to remember' : 'Write the explanation you want to remember'}
+                  rows={5}
+                />
+                <FieldError>{answerError}</FieldError>
+              </Field>
+            )}
           </FieldGroup>
 
           {saveError && <FieldError>{saveError}</FieldError>}
