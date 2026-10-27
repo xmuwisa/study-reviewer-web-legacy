@@ -917,7 +917,7 @@ function FlashcardMode({
             type="button"
             variant="ghost"
             size="icon"
-            className="flashcard-scroll-hint absolute right-4 bottom-3 bg-transparent text-primary shadow-none hover:bg-transparent hover:text-primary"
+            className="flashcard-scroll-hint absolute right-4 bottom-6 bg-transparent text-foreground shadow-none hover:bg-transparent hover:text-foreground"
             aria-label="Scroll to the bottom of the options"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
