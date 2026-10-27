@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   CircleX,
   ChevronLeft,
+  ChevronDown,
   ChevronRight,
   Clock3,
   Eye,
@@ -436,6 +437,8 @@ function FlashcardMode({
   const navigationFrameRef = useRef<number | null>(null)
   const pendingNavigationIdRef = useRef<string | null>(null)
   const carouselStageRef = useRef<HTMLDivElement | null>(null)
+  const questionOptionsScrollRef = useRef<HTMLDivElement | null>(null)
+  const [showQuestionOptionsScrollHint, setShowQuestionOptionsScrollHint] = useState(false)
   currentEntryIdRef.current = currentEntryId
 
   function setInteractionPhase(nextPhase: FlashcardInteractionPhase) {
@@ -493,6 +496,42 @@ function FlashcardMode({
 
   const currentIndex = Math.max(0, orderedEntries.findIndex((entry) => entry.id === currentEntryId))
   const currentEntry = orderedEntries[currentIndex]
+  const currentEntryType = currentEntry?.type
+  const currentQuestionOptionsLength = currentEntry?.options?.length ?? 0
+
+  const updateQuestionOptionsScrollHint = useCallback(() => {
+    const element = questionOptionsScrollRef.current
+    if (!element) {
+      setShowQuestionOptionsScrollHint(false)
+      return
+    }
+
+    const hasMoreContent = element.scrollHeight > element.clientHeight + 1
+    const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1
+    setShowQuestionOptionsScrollHint(hasMoreContent && !isAtBottom)
+  }, [])
+
+  useEffect(() => {
+    if (currentEntryType !== 'question-options' || !flipped) {
+      setShowQuestionOptionsScrollHint(false)
+      return
+    }
+
+    const element = questionOptionsScrollRef.current
+    if (!element) return
+
+    const update = () => updateQuestionOptionsScrollHint()
+    const frameId = window.requestAnimationFrame(update)
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    resizeObserver?.observe(element)
+    element.addEventListener('scroll', update, { passive: true })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      resizeObserver?.disconnect()
+      element.removeEventListener('scroll', update)
+    }
+  }, [currentEntryType, currentQuestionOptionsLength, currentEntry?.explanation, flipped, questionOptionsResult, updateQuestionOptionsScrollHint])
 
   function moveTo(index: number) {
     const nextEntry = orderedEntries[index]
@@ -798,80 +837,104 @@ function FlashcardMode({
 
     return (
       <div
-        className={cn(
-          'flashcard-face flashcard-face-back absolute inset-0 flex min-h-64 w-full flex-col justify-start gap-4 overflow-y-auto rounded-2xl bg-card px-5 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-12 sm:py-8',
-        )}
+        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-64 w-full flex-col overflow-hidden rounded-2xl bg-card px-5 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-12 sm:py-8"
         aria-hidden={!isVisible}
       >
-        <span className="text-center text-base font-semibold uppercase tracking-[0.16em] text-primary">Options</span>
-        <FieldSet
-          className="flex w-full flex-col gap-3"
-          disabled={!isVisible || questionOptionsResult !== null}
-          onPointerDown={stopInteraction}
-          onClick={stopInteraction}
+        <div
+          ref={questionOptionsScrollRef}
+          className={cn(
+            'flex min-h-0 w-full flex-1 flex-col gap-4 overflow-y-auto',
+            showQuestionOptionsScrollHint ? 'pb-14' : 'pb-4',
+          )}
         >
-          <FieldLegend className="sr-only">Select every correct option</FieldLegend>
-          {questionOptions.map((option, index) => {
-            const isSelected = selectedOptionIndexes.has(index)
-            const feedbackClass = questionOptionsResult === null
-              ? 'border-border/70 bg-background/20 text-foreground hover:bg-muted/20'
-              : option.isCorrect && isSelected
-                ? 'border-accent bg-accent text-accent-foreground'
-                : option.isCorrect
-                  ? 'border-accent/60 bg-accent/30 text-accent-foreground'
-                  : isSelected
-                    ? 'border-destructive bg-destructive text-destructive-foreground'
-                    : 'border-border/70 bg-background/20 text-foreground'
+          <span className="text-center text-base font-semibold uppercase tracking-[0.16em] text-primary">Options</span>
+          <FieldSet
+            className="w-full gap-3"
+            disabled={!isVisible || questionOptionsResult !== null}
+            onPointerDown={stopInteraction}
+            onClick={stopInteraction}
+          >
+            <FieldLegend className="sr-only">Select every correct option</FieldLegend>
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              {questionOptions.map((option, index) => {
+                const isSelected = selectedOptionIndexes.has(index)
+                const feedbackClass = questionOptionsResult === null
+                  ? 'border-border/70 bg-background/20 text-foreground hover:bg-muted/20'
+                  : option.isCorrect && isSelected
+                    ? 'border-accent bg-accent text-accent-foreground'
+                    : option.isCorrect
+                      ? 'border-accent/60 bg-accent/30 text-accent-foreground'
+                      : isSelected
+                        ? 'border-destructive/70 bg-destructive/25 text-foreground'
+                        : 'border-border/70 bg-background/20 text-foreground'
 
-            return (
-              <label
-                key={`${currentEntry.id}-flashcard-option-${index}`}
-                htmlFor={`${currentEntry.id}-flashcard-option-${index}`}
-                className={cn(
-                  'flex min-h-12 items-center gap-3 rounded-xl border px-4 py-3 text-base leading-relaxed transition-colors',
-                  feedbackClass,
-                )}
+                return (
+                  <label
+                    key={`${currentEntry.id}-flashcard-option-${index}`}
+                    htmlFor={`${currentEntry.id}-flashcard-option-${index}`}
+                    className={cn(
+                      'flex min-w-0 min-h-12 items-center gap-3 rounded-xl border px-4 py-3 text-base leading-relaxed transition-colors',
+                      feedbackClass,
+                    )}
+                  >
+                    <Checkbox
+                      id={`${currentEntry.id}-flashcard-option-${index}`}
+                      checked={isSelected}
+                      disabled={!isVisible || questionOptionsResult !== null}
+                      onCheckedChange={(checked) => toggleOption(index, checked === true)}
+                      aria-label={`Select option ${index + 1}: ${option.text}`}
+                    />
+                    <span className="min-w-0 break-words whitespace-pre-wrap">{option.text}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </FieldSet>
+          {questionOptionsResult === null ? (
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!isVisible || selectedOptionIndexes.size === 0 || interactionPhase !== 'idle'}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={submitOptions}
+            >
+              Enter
+            </Button>
+          ) : (
+            <div className="flex justify-center">
+              <Badge
+                variant={questionOptionsResult ? 'secondary' : 'destructive'}
+                role="status"
+                aria-live="polite"
+                className="h-8 px-3 text-sm"
               >
-                <Checkbox
-                  id={`${currentEntry.id}-flashcard-option-${index}`}
-                  checked={isSelected}
-                  disabled={!isVisible || questionOptionsResult !== null}
-                  onCheckedChange={(checked) => toggleOption(index, checked === true)}
-                  aria-label={`Select option ${index + 1}: ${option.text}`}
-                />
-                <span className="whitespace-pre-wrap">{option.text}</span>
-              </label>
-            )
-          })}
-        </FieldSet>
-        {questionOptionsResult === null ? (
+                {questionOptionsResult ? <CheckCircle2 aria-hidden="true" /> : <CircleX aria-hidden="true" />}
+                {questionOptionsResult ? 'Correct' : 'Incorrect'}
+              </Badge>
+            </div>
+          )}
+          {questionOptionsResult !== null && currentEntry.explanation && (
+            <p className="whitespace-pre-wrap text-base leading-relaxed text-muted-foreground">
+              <span className="font-semibold text-foreground">Explanation: </span>
+              {currentEntry.explanation}
+            </p>
+          )}
+        </div>
+        {showQuestionOptionsScrollHint && (
           <Button
             type="button"
-            className="w-full"
-            disabled={!isVisible || selectedOptionIndexes.size === 0 || interactionPhase !== 'idle'}
+            variant="secondary"
+            size="icon-xs"
+            className="absolute right-3 bottom-3 rounded-full shadow-sm"
+            aria-label="Scroll to the bottom of the options"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={submitOptions}
+            onClick={(event) => {
+              event.stopPropagation()
+              questionOptionsScrollRef.current?.scrollTo({ top: questionOptionsScrollRef.current.scrollHeight, behavior: 'smooth' })
+            }}
           >
-            Enter
+            <ChevronDown aria-hidden="true" data-icon="inline-start" />
           </Button>
-        ) : (
-          <div
-            role="status"
-            aria-live="polite"
-            className={cn(
-              'flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2 text-base font-semibold',
-              questionOptionsResult ? 'bg-accent text-accent-foreground' : 'bg-destructive text-destructive-foreground',
-            )}
-          >
-            {questionOptionsResult ? <CheckCircle2 aria-hidden="true" data-icon="inline-start" /> : <CircleX aria-hidden="true" data-icon="inline-start" />}
-            {questionOptionsResult ? 'Correct' : 'Incorrect'}
-          </div>
-        )}
-        {questionOptionsResult !== null && currentEntry.explanation && (
-          <p className="whitespace-pre-wrap text-base leading-relaxed text-muted-foreground">
-            <span className="font-semibold text-foreground">Explanation: </span>
-            {currentEntry.explanation}
-          </p>
         )}
       </div>
     )
