@@ -506,7 +506,9 @@ function FlashcardMode({
       return
     }
 
-    const hasMoreContent = element.scrollHeight > element.clientHeight + 1
+    const scrollportBottom = element.getBoundingClientRect().bottom
+    const contentBottom = element.lastElementChild?.getBoundingClientRect().bottom ?? scrollportBottom
+    const hasMoreContent = contentBottom > scrollportBottom + 1
     const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1
     setShowQuestionOptionsScrollHint(hasMoreContent && !isAtBottom)
   }, [])
@@ -525,11 +527,13 @@ function FlashcardMode({
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
     resizeObserver?.observe(element)
     element.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
 
     return () => {
       window.cancelAnimationFrame(frameId)
       resizeObserver?.disconnect()
       element.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
     }
   }, [currentEntryType, currentQuestionOptionsLength, currentEntry?.explanation, flipped, questionOptionsResult, updateQuestionOptionsScrollHint])
 
@@ -890,7 +894,7 @@ function FlashcardMode({
               })}
             </div>
           </FieldSet>
-          {questionOptionsResult === null ? (
+          {questionOptionsResult === null && (
             <Button
               type="button"
               className="w-full"
@@ -900,17 +904,6 @@ function FlashcardMode({
             >
               Enter
             </Button>
-          ) : (
-            <div
-              role="status"
-              aria-live="polite"
-              className={cn(
-                'flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-base font-semibold',
-                questionOptionsResult ? 'bg-accent text-accent-foreground' : QUESTION_OPTIONS_INCORRECT_FEEDBACK_CLASS,
-              )}
-            >
-              {questionOptionsResult ? 'CORRECT' : 'INCORRECT'}
-            </div>
           )}
           {questionOptionsResult !== null && currentEntry.explanation && (
             <p className="whitespace-pre-wrap text-base leading-relaxed text-muted-foreground">
@@ -923,8 +916,8 @@ function FlashcardMode({
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="flashcard-scroll-hint absolute right-4 bottom-3 bg-transparent text-muted-foreground shadow-none hover:bg-transparent hover:text-foreground [&_svg]:size-5"
+            size="icon-lg"
+            className="flashcard-scroll-hint absolute right-4 bottom-3 bg-transparent text-primary shadow-none hover:bg-transparent hover:text-primary [&_svg]:size-7"
             aria-label="Scroll to the bottom of the options"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
