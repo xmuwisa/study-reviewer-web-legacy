@@ -5,7 +5,7 @@ import type {
   StudyData,
   TimerState,
   Timestamp,
-} from '@/lib/study-data'
+} from './study-data'
 
 export const POMODORO_MINUTES_MIN = 1
 export const POMODORO_MINUTES_MAX = 120
@@ -160,8 +160,11 @@ export function resetPomodoro(data: StudyData) {
 export function completePomodoroSession(data: StudyData, mode: PomodoroMode, durationMinutes: number, now: Timestamp) {
   const completedSession = createPomodoroSession(mode, durationMinutes, now - clampPomodoroMinutes(durationMinutes) * MINUTE_IN_MS)
   const transition = getCompletionTransition(data, completedSession)
-  const nextMode = data.settings.pomodoro.autoSwitch ? transition.selectedMode : mode
+  const nextMode = transition.selectedMode
   const nextDuration = getDefaultDuration(data, nextMode)
+  const activeSession = data.settings.pomodoro.autoStartNextSession
+    ? createPomodoroSession(nextMode, nextDuration, now)
+    : null
 
   return withTimer(
     {
@@ -173,7 +176,7 @@ export function completePomodoroSession(data: StudyData, mode: PomodoroMode, dur
       selectedMode: nextMode,
       selectedDurationMinutes: nextDuration,
       focusCycleCount: transition.focusCycleCount,
-      activeSession: null,
+      activeSession,
     },
   )
 }

@@ -14,8 +14,8 @@ import {
   type StudySettings,
   type TimerState,
   type Topic,
-} from '@/lib/study-data'
-import { POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, removeLegacyAutomaticAmbiencePreference, removeLegacyNotificationsEnabledPreference, removeLegacySoundEnabledPreference } from '@/lib/pomodoro-audio'
+} from './study-data'
+import { POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, removeLegacyAutomaticAmbiencePreference, removeLegacyNotificationsEnabledPreference, removeLegacySoundEnabledPreference } from './pomodoro-audio'
 
 export type ValidationIssue = {
   path: string
@@ -133,7 +133,7 @@ function validatePomodoroPreferences(value: unknown, path: string, issues: Valid
   if (!isNonNegativeInteger(value.sessionsBeforeLongBreak) || value.sessionsBeforeLongBreak < 1 || value.sessionsBeforeLongBreak > 12) {
     addIssue(issues, `${path}.sessionsBeforeLongBreak`, 'must be an integer from 1 to 12')
   }
-  for (const field of ['autoSwitch', 'autoStart', 'ambienceMuted'] as const) {
+  for (const field of ['autoStartNextSession', 'ambienceMuted'] as const) {
     if (typeof value[field] !== 'boolean') addIssue(issues, `${path}.${field}`, 'must be a boolean')
   }
   if (typeof value.defaultAlarm !== 'string' || !POMODORO_ALARM_OPTIONS.some((option) => option.value === value.defaultAlarm)) {
@@ -277,7 +277,11 @@ function migrateTimerState(value: UnknownRecord) {
 function migratePomodoroPreferences(value: UnknownRecord) {
   const settings = isRecord(value.settings) ? value.settings : {}
   const pomodoro = isRecord(settings.pomodoro) ? settings.pomodoro : {}
-  const savedPomodoro = removeLegacyNotificationsEnabledPreference(removeLegacySoundEnabledPreference(removeLegacyAutomaticAmbiencePreference(pomodoro)))
+  const withoutLegacyAudioPreferences = removeLegacyNotificationsEnabledPreference(removeLegacySoundEnabledPreference(removeLegacyAutomaticAmbiencePreference(pomodoro)))
+  const autoStartNextSession = typeof withoutLegacyAudioPreferences.autoStartNextSession === 'boolean'
+    ? withoutLegacyAudioPreferences.autoStartNextSession
+    : withoutLegacyAudioPreferences.autoSwitch === true && withoutLegacyAudioPreferences.autoStart === true
+  const savedPomodoro = Object.fromEntries(Object.entries(withoutLegacyAudioPreferences).filter(([key]) => key !== 'autoSwitch' && key !== 'autoStart'))
 
   return {
     ...value,
@@ -286,6 +290,7 @@ function migratePomodoroPreferences(value: UnknownRecord) {
       pomodoro: {
         ...createDefaultSettings().pomodoro,
         ...savedPomodoro,
+        autoStartNextSession,
       },
     },
   }

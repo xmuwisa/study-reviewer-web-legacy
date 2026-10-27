@@ -2,8 +2,8 @@ import type {
   PomodoroAlarmSelection,
   PomodoroAmbienceSelection,
   PomodoroSnoozeMinutes,
-} from '@/lib/pomodoro-audio'
-import type { PomodoroPermissionSetupStatus } from '@/lib/pomodoro-permissions'
+} from './pomodoro-audio'
+import type { PomodoroPermissionSetupStatus } from './pomodoro-permissions'
 
 export const STUDY_DATA_SCHEMA_VERSION = 2 as const
 export const STUDY_DATA_STORAGE_KEY = `study-reviewer:data:v${STUDY_DATA_SCHEMA_VERSION}`
@@ -53,8 +53,7 @@ export type PomodoroPreferences = {
   shortBreakMinutes: number
   longBreakMinutes: number
   sessionsBeforeLongBreak: number
-  autoSwitch: boolean
-  autoStart: boolean
+  autoStartNextSession: boolean
   ambienceMuted: boolean
   defaultAlarm: PomodoroAlarmSelection
   defaultAmbience: PomodoroAmbienceSelection
@@ -151,8 +150,7 @@ export function createDefaultSettings(): StudySettings {
       shortBreakMinutes: 5,
       longBreakMinutes: 15,
       sessionsBeforeLongBreak: 4,
-      autoSwitch: true,
-      autoStart: false,
+      autoStartNextSession: false,
       ambienceMuted: false,
       defaultAlarm: 'none',
       defaultAmbience: 'none',
