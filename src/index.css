@@ -223,6 +223,21 @@ a {
   transform: rotateY(180deg) translateZ(1px);
 }
 
+@keyframes flashcard-scroll-hint {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+.flashcard-scroll-hint {
+  animation: flashcard-scroll-hint 1.8s ease-in-out infinite;
+}
+
 .pomodoro-panel {
   background: var(--pomodoro-panel);
   border-color: color-mix(in oklab, var(--pomodoro-ink) 14%, transparent);
@@ -284,6 +299,10 @@ a {
   .flashcard-drag-surface {
     animation: none;
     transition: none;
+  }
+
+  .flashcard-scroll-hint {
+    animation: none;
   }
 
   .pomodoro-alarm-pulse {

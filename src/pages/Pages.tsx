@@ -6,8 +6,8 @@ import {
   Check,
   CheckCircle2,
   CircleX,
+  ChevronsDown,
   ChevronLeft,
-  ChevronDown,
   ChevronRight,
   Clock3,
   Eye,
@@ -837,7 +837,7 @@ function FlashcardMode({
 
     return (
       <div
-        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-64 w-full flex-col overflow-hidden rounded-2xl bg-card px-5 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-12 sm:py-8"
+        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-64 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-16 sm:py-8"
         aria-hidden={!isVisible}
       >
         <div
@@ -901,16 +901,16 @@ function FlashcardMode({
               Enter
             </Button>
           ) : (
-            <div className="flex justify-center">
-              <Badge
-                variant={questionOptionsResult ? 'secondary' : 'destructive'}
-                role="status"
-                aria-live="polite"
-                className="h-8 px-3 text-sm"
-              >
-                {questionOptionsResult ? <CheckCircle2 aria-hidden="true" /> : <CircleX aria-hidden="true" />}
-                {questionOptionsResult ? 'Correct' : 'Incorrect'}
-              </Badge>
+            <div
+              role="status"
+              aria-live="polite"
+              className={cn(
+                'flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-base font-semibold',
+                questionOptionsResult ? 'bg-accent text-accent-foreground' : 'bg-destructive text-destructive-foreground',
+              )}
+            >
+              {questionOptionsResult ? <CheckCircle2 aria-hidden="true" data-icon="inline-start" /> : <CircleX aria-hidden="true" data-icon="inline-start" />}
+              {questionOptionsResult ? 'Correct' : 'Incorrect'}
             </div>
           )}
           {questionOptionsResult !== null && currentEntry.explanation && (
@@ -925,7 +925,7 @@ function FlashcardMode({
             type="button"
             variant="secondary"
             size="icon-xs"
-            className="absolute right-3 bottom-3 rounded-full shadow-sm"
+            className="flashcard-scroll-hint absolute right-4 bottom-3 rounded-full bg-card/95 text-foreground shadow-md ring-1 ring-border hover:bg-muted"
             aria-label="Scroll to the bottom of the options"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -933,7 +933,7 @@ function FlashcardMode({
               questionOptionsScrollRef.current?.scrollTo({ top: questionOptionsScrollRef.current.scrollHeight, behavior: 'smooth' })
             }}
           >
-            <ChevronDown aria-hidden="true" data-icon="inline-start" />
+            <ChevronsDown aria-hidden="true" data-icon="inline-start" />
           </Button>
         )}
       </div>
