@@ -916,8 +916,8 @@ function FlashcardMode({
           <Button
             type="button"
             variant="ghost"
-            size="icon-lg"
-            className="flashcard-scroll-hint absolute right-4 bottom-3 bg-transparent text-primary shadow-none hover:bg-transparent hover:text-primary [&_svg]:size-7"
+            size="icon"
+            className="flashcard-scroll-hint absolute right-4 bottom-3 bg-transparent text-primary shadow-none hover:bg-transparent hover:text-primary"
             aria-label="Scroll to the bottom of the options"
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => {
@@ -925,7 +925,7 @@ function FlashcardMode({
               questionOptionsScrollRef.current?.scrollTo({ top: questionOptionsScrollRef.current.scrollHeight, behavior: 'smooth' })
             }}
           >
-            <ChevronsDown aria-hidden="true" data-icon="inline-start" />
+            <ChevronsDown aria-hidden="true" data-icon="inline-start" className="size-7" />
           </Button>
         )}
       </div>
@@ -1552,7 +1552,14 @@ export function TopicStudyPage() {
   return (
     <div>
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <PageHeading title={topic.name} description={topic.description || 'A focused review path for questions and explanations.'} />
+        <div className="flex min-w-0 items-start justify-between gap-4 sm:block">
+          <div className="min-w-0">
+            <PageHeading title={topic.name} description={topic.description || 'A focused review path for questions and explanations.'} />
+          </div>
+          <div className="shrink-0 pt-1 text-right text-base text-muted-foreground sm:hidden">
+            <CountLabel count={getEntriesForTopic(data, topic.id).length} singular="question" plural="questions" />
+          </div>
+        </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
           <ToggleGroup
             value={[studyMode]}
@@ -1570,7 +1577,7 @@ export function TopicStudyPage() {
               <BookOpenCheck aria-hidden="true" data-icon="inline-start" /> Flashcards
             </ToggleGroupItem>
           </ToggleGroup>
-          <div className="text-base text-muted-foreground sm:text-right">
+          <div className="hidden text-base text-muted-foreground sm:block sm:text-right">
             <CountLabel count={getEntriesForTopic(data, topic.id).length} singular="question" plural="questions" />
           </div>
           <div className="flex w-full items-center justify-end gap-2">
