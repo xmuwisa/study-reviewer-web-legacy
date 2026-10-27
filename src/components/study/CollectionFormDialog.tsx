@@ -72,7 +72,7 @@ export function CollectionFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto sm:max-h-[calc(100dvh-3rem)]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>

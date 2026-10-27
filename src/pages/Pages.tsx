@@ -325,10 +325,15 @@ function EntryList({
                     >
                       {isQuestionOptions ? (
                         <div className="flex w-full flex-col gap-3">
+                          {rightHidden && (
+                            <span className="text-sm font-medium text-muted-foreground">
+                              Answers hidden · <span className="text-primary">Reveal</span>
+                            </span>
+                          )}
                           {(entry.options ?? []).map((option, index) => (
                             <div key={`${entry.id}-option-${index}`} className="flex items-start gap-3 rounded-lg bg-muted/35 px-3 py-2.5">
                               <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center text-primary">
-                                {!rightHidden && option.isCorrect && <Check aria-label="Correct option" className="size-4" />}
+                                {!rightHidden && option.isCorrect && <Check aria-label="Correct option" />}
                               </span>
                               <span className="whitespace-pre-wrap">{option.text}</span>
                             </div>

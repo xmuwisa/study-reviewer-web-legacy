@@ -113,7 +113,7 @@ export function EntryFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto sm:max-h-[calc(100dvh-3rem)]">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit entry' : 'Create entry'}</DialogTitle>
           <DialogDescription>
@@ -165,73 +165,79 @@ export function EntryFormDialog({
             </Field>
 
             {isQuestionOptions ? (
-              <Field data-invalid={Boolean(optionsError)}>
-                <FieldLabel>Options</FieldLabel>
-                <div className="flex flex-col gap-3">
-                  {values.options.map((option, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={option.isCorrect}
-                        onCheckedChange={(checked) => setValues((current) => ({
-                          ...current,
-                          options: current.options.map((currentOption, currentIndex) => currentIndex === index ? { ...currentOption, isCorrect: checked === true } : currentOption),
-                        }))}
-                        aria-label={`Mark option ${index + 1} as correct`}
-                      />
-                      <Input
-                        className="border-0 bg-muted/45"
-                        aria-label={`Option ${index + 1}`}
-                        aria-invalid={Boolean(optionsError && !option.text.trim())}
-                        spellCheck={spellcheck}
-                        onCopy={preventClipboardAction}
-                        onCut={preventClipboardAction}
-                        onPaste={preventClipboardAction}
-                        value={option.text}
-                        onChange={(event) => setValues((current) => ({
-                          ...current,
-                          options: current.options.map((currentOption, currentIndex) => currentIndex === index ? { ...currentOption, text: event.target.value } : currentOption),
-                        }))}
-                        placeholder={`Option ${index + 1}`}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Remove option ${index + 1}`}
-                        disabled={values.options.length <= 2}
-                        onClick={() => setValues((current) => ({ ...current, options: current.options.filter((_, currentIndex) => currentIndex !== index) }))}
-                      >
-                        <Trash2 aria-hidden="true" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={values.options.length >= 6}
-                    onClick={() => setValues((current) => ({ ...current, options: [...current.options, { text: '', isCorrect: false }] }))}
-                  >
-                    <Plus aria-hidden="true" data-icon="inline-start" /> Add option
-                  </Button>
-                  <FieldError>{optionsError}</FieldError>
-                </div>
-                <FieldLabel htmlFor="entry-explanation">Explanation <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
-                <Textarea
-                  id="entry-explanation"
-                  className="border-0 bg-muted/45"
-                  spellCheck={spellcheck}
-                  onCopy={preventClipboardAction}
-                  onCut={preventClipboardAction}
-                  onPaste={preventClipboardAction}
-                  value={values.explanation}
-                  onChange={(event) => setValues((current) => ({ ...current, explanation: event.target.value }))}
-                  placeholder="Optional explanation"
-                  rows={3}
-                />
-              </Field>
+              <>
+                <Field data-invalid={Boolean(optionsError)}>
+                  <FieldLabel>Options</FieldLabel>
+                  <div className="flex flex-col gap-3">
+                    {values.options.map((option, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={option.isCorrect}
+                          onCheckedChange={(checked) => setValues((current) => ({
+                            ...current,
+                            options: current.options.map((currentOption, currentIndex) => currentIndex === index ? { ...currentOption, isCorrect: checked === true } : currentOption),
+                          }))}
+                          aria-label={`Mark option ${index + 1} as correct`}
+                        />
+                        <Input
+                          className="min-w-0 flex-1 border-0 bg-muted/45"
+                          aria-label={`Option ${index + 1}`}
+                          aria-invalid={Boolean(optionsError && !option.text.trim())}
+                          spellCheck={spellcheck}
+                          onCopy={preventClipboardAction}
+                          onCut={preventClipboardAction}
+                          onPaste={preventClipboardAction}
+                          value={option.text}
+                          onChange={(event) => setValues((current) => ({
+                            ...current,
+                            options: current.options.map((currentOption, currentIndex) => currentIndex === index ? { ...currentOption, text: event.target.value } : currentOption),
+                          }))}
+                          placeholder={`Option ${index + 1}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remove option ${index + 1}`}
+                          className="shrink-0"
+                          disabled={values.options.length <= 2}
+                          onClick={() => setValues((current) => ({ ...current, options: current.options.filter((_, currentIndex) => currentIndex !== index) }))}
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      size="sm"
+                      disabled={values.options.length >= 6}
+                      onClick={() => setValues((current) => ({ ...current, options: [...current.options, { text: '', isCorrect: false }] }))}
+                    >
+                      <Plus aria-hidden="true" data-icon="inline-start" /> Add option
+                    </Button>
+                    <FieldError>{optionsError}</FieldError>
+                  </div>
+                </Field>
+                <Field className="pt-2">
+                  <FieldLabel htmlFor="entry-explanation">Explanation <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
+                  <Textarea
+                    id="entry-explanation"
+                    className="border-0 bg-muted/45"
+                    spellCheck={spellcheck}
+                    onCopy={preventClipboardAction}
+                    onCut={preventClipboardAction}
+                    onPaste={preventClipboardAction}
+                    value={values.explanation}
+                    onChange={(event) => setValues((current) => ({ ...current, explanation: event.target.value }))}
+                    placeholder="Optional explanation"
+                    rows={3}
+                  />
+                </Field>
+              </>
             ) : (
               <Field data-invalid={Boolean(answerError)}>
                 <FieldLabel htmlFor="entry-answer">{rightLabel}</FieldLabel>
