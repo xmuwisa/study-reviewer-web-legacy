@@ -341,7 +341,7 @@ function EntryList({
                   <div className="p-5">
                     <Button
                       type="button"
-                      variant="reveal"
+                      variant={isQuestionOptions ? 'options-reveal' : 'reveal'}
                       className={cn(
                         LIST_REVEAL_BUTTON_CLASS,
                         isQuestionOptions && 'items-stretch',
