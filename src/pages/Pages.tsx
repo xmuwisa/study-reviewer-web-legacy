@@ -49,7 +49,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
+import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type EntryOption, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
 import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
 import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
 import { POMODORO_AUDIO_SETUP_EVENT } from '@/lib/pomodoro-permissions'
@@ -90,6 +90,30 @@ function PageHeading({ title, description }: { title: string; description: strin
       <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{title}</h1>
       <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground">{description}</p>
     </div>
+  )
+}
+
+function QuestionOptionRow({ option, isRevealed }: { option: EntryOption; isRevealed: boolean }) {
+  const isCorrectAndRevealed = isRevealed && option.isCorrect
+
+  return (
+    <Button
+      render={<div />}
+      variant="ghost"
+      className={cn(
+        'h-auto min-h-0 w-full justify-start whitespace-normal rounded-xl px-4 py-3 text-left text-base font-normal leading-relaxed',
+        isCorrectAndRevealed
+          ? 'border border-transparent bg-muted text-foreground hover:!bg-muted'
+          : isRevealed
+            ? 'border border-border/70 bg-transparent text-card-foreground hover:!bg-muted'
+            : 'border border-border/70 bg-transparent text-card-foreground hover:!bg-muted/20',
+      )}
+    >
+      <span className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center', isCorrectAndRevealed && 'text-primary')}>
+        {isCorrectAndRevealed && <Check aria-label="Correct option" />}
+      </span>
+      <span className="whitespace-pre-wrap">{option.text}</span>
+    </Button>
   )
 }
 
@@ -318,7 +342,10 @@ function EntryList({
                     <Button
                       type="button"
                       variant="ghost"
-                      className={cn('h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20', isQuestionOptions && 'items-stretch aria-expanded:!bg-card hover:!bg-muted/20')}
+                      className={cn(
+                        'h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20',
+                        isQuestionOptions && 'items-stretch aria-expanded:!bg-card hover:!bg-muted/20',
+                      )}
                       aria-expanded={!rightHidden}
                       aria-label={`${rightHidden ? 'Reveal' : 'Hide'} ${rightLabel.toLowerCase()} for ${entry.question}`}
                       onClick={() => onToggleRight(entry.id)}
@@ -329,22 +356,11 @@ function EntryList({
                             Correct answers {rightHidden ? 'hidden' : 'shown'} · <span className="text-primary">{rightHidden ? 'Reveal' : 'Hide'}</span>
                           </span>
                           {(entry.options ?? []).map((option, index) => (
-                            <Button
+                            <QuestionOptionRow
                               key={`${entry.id}-option-${index}`}
-                              render={<div />}
-                              variant="ghost"
-                              className={cn(
-                                'h-auto min-h-0 w-full justify-start whitespace-normal rounded-xl px-4 py-3 text-left text-base font-normal leading-relaxed',
-                                !rightHidden && option.isCorrect
-                                  ? 'border border-transparent bg-muted text-foreground hover:!bg-muted/20'
-                                  : 'border border-border/70 bg-transparent text-card-foreground hover:!bg-muted/20',
-                              )}
-                            >
-                              <span className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center', !rightHidden && 'text-primary')}>
-                                {!rightHidden && option.isCorrect && <Check aria-label="Correct option" />}
-                              </span>
-                              <span className="whitespace-pre-wrap">{option.text}</span>
-                            </Button>
+                              option={option}
+                              isRevealed={!rightHidden}
+                            />
                           ))}
                           {!rightHidden && entry.explanation && (
                             <div className="border-t border-border/70 pt-3 text-muted-foreground">
