@@ -39,3 +39,7 @@ export function removeLegacyAutomaticAmbiencePreference(preferences: Record<stri
 export function removeLegacySoundEnabledPreference(preferences: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(preferences).filter(([key]) => key !== 'soundEnabled'))
 }
+
+export function removeLegacyNotificationsEnabledPreference(preferences: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(preferences).filter(([key]) => key !== 'notificationsEnabled'))
+}

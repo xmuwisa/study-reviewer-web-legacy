@@ -16,9 +16,7 @@ import {
   combineAudioInitializationResults,
   getAudioRetryFeedback,
   getAudioSetupFeedback,
-  getPermissionSetupFeedback,
-  POMODORO_PERMISSION_SETUP_EVENT,
-  requestNotificationPermission,
+  POMODORO_AUDIO_SETUP_EVENT,
 } from '@/lib/pomodoro-permissions'
 import { cn } from '@/lib/utils'
 import { useStudyData } from '@/lib/use-study-data'
@@ -145,7 +143,6 @@ export function AppShell() {
     if (isPermissionSetupBusy) return
 
     setIsPermissionSetupBusy(true)
-    const notificationPromise = requestNotificationPermission()
     const audioResults = await Promise.all([initializePomodoroAudio(), initializeAmbienceAudio()])
     const audioResult = combineAudioInitializationResults(...audioResults)
     const saved = updateSettings({ pomodoro: { permissionSetupStatus: 'enabled' } })
@@ -155,9 +152,6 @@ export function AppShell() {
     setPermissionSetupFeedback(saved
       ? getAudioSetupFeedback(audioResult)
       : { kind: 'error', message: 'Setup finished, but the setup choice could not be saved locally.' })
-    void notificationPromise.then((notificationResult) => {
-      if (saved) setPermissionSetupFeedback(getPermissionSetupFeedback(audioResult, notificationResult))
-    })
   }, [closePermissionSetup, initializeAmbienceAudio, initializePomodoroAudio, isPermissionSetupBusy, updateSettings])
 
   const handleEnableSound = useCallback(async () => {
@@ -223,8 +217,8 @@ export function AppShell() {
       setIsPermissionSetupOpen(true)
     }
 
-    window.addEventListener(POMODORO_PERMISSION_SETUP_EVENT, openPermissionSetup)
-    return () => window.removeEventListener(POMODORO_PERMISSION_SETUP_EVENT, openPermissionSetup)
+    window.addEventListener(POMODORO_AUDIO_SETUP_EVENT, openPermissionSetup)
+    return () => window.removeEventListener(POMODORO_AUDIO_SETUP_EVENT, openPermissionSetup)
   }, [])
 
   useEffect(() => {

@@ -51,7 +51,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
 import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
 import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
-import { POMODORO_PERMISSION_SETUP_EVENT } from '@/lib/pomodoro-permissions'
+import { POMODORO_AUDIO_SETUP_EVENT } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 import { cn } from '@/lib/utils'
 import {
@@ -1742,20 +1742,13 @@ export function SettingsPage() {
                   </div>
                 </Field>
               </div>
-              <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
-                <FieldContent>
-                  <FieldTitle>Browser notifications</FieldTitle>
-                  <FieldDescription>Show a system notification when a Pomodoro session finishes, if permitted by your browser.</FieldDescription>
-                </FieldContent>
-                <Toggle pressed={settings.pomodoro.notificationsEnabled} onPressedChange={(pressed) => savePreferences({ pomodoro: { notificationsEnabled: pressed } })} aria-label="Browser notifications" size="sm">{settings.pomodoro.notificationsEnabled ? 'On' : 'Off'}</Toggle>
-              </Field>
               <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <CardTitle className="text-2xl">Sounds &amp; Snooze</CardTitle>
                   <CardDescription className="mt-2 leading-relaxed">Choose the sounds and snooze length for future Pomodoro alerts.</CardDescription>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event(POMODORO_PERMISSION_SETUP_EVENT))}>
-                  Set up sound &amp; notifications
+                  <Button type="button" variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event(POMODORO_AUDIO_SETUP_EVENT))}>
+                  Set up sound
                 </Button>
               </div>
               <div className="grid gap-5 pt-1 sm:grid-cols-2">

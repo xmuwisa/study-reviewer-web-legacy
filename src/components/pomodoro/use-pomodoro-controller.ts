@@ -3,12 +3,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { getPomodoroRemainingSeconds } from '@/lib/pomodoro'
 import { getPomodoroAlarmOption } from '@/lib/pomodoro-audio'
 import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
-import {
-  type AudioOperationResult,
-  getNotificationPermission,
-  getPomodoroNotificationIdentity,
-  showPomodoroNotification,
-} from '@/lib/pomodoro-permissions'
+import type { AudioOperationResult } from '@/lib/pomodoro-permissions'
 import type { PomodoroMode } from '@/lib/study-data'
 import { useStudyData } from '@/lib/use-study-data'
 
@@ -60,12 +55,10 @@ export function usePomodoroController(): PomodoroController {
   const [preciseDuration, setPreciseDuration] = useState(() => String(data.settings.pomodoro.focusMinutes))
   const [now, setNow] = useState(() => Date.now())
   const alarmAnnouncementRef = useRef<string | null>(null)
-  const notificationAnnouncementRef = useRef<string | null>(null)
   const session = data.timer.activeSession
   const mode = data.timer.selectedMode
   const modeConfig = TIMER_MODES[mode]
   const duration = data.settings.pomodoro[modeConfig.durationKey]
-  const permissionSetupStatus = data.settings.pomodoro.permissionSetupStatus
   const selectedAlarm = getPomodoroAlarmOption(data.settings.pomodoro.defaultAlarm)
   const remainingSeconds = session ? getPomodoroRemainingSeconds(session, now) : duration * 60
   const alarmActive = Boolean(session && (session.status === 'completed' || (session.status === 'running' && remainingSeconds === 0)))
@@ -111,25 +104,6 @@ export function usePomodoroController(): PomodoroController {
     alarmAnnouncementRef.current = alarmIdentity
     void pomodoroAudioManager.beginAlarm(selectedAlarm.src, alarmIdentity)
   }, [alarmActive, selectedAlarm.src, session?.completedAt, session?.endsAt, session?.mode, session?.startedAt])
-
-  useEffect(() => {
-    if (!alarmActive) {
-      notificationAnnouncementRef.current = null
-      return
-    }
-
-    if (permissionSetupStatus !== 'enabled' || !data.settings.pomodoro.notificationsEnabled || getNotificationPermission() !== 'granted' || !session) return
-
-    const notificationIdentity = getPomodoroNotificationIdentity(session)
-    if (notificationAnnouncementRef.current === notificationIdentity) return
-
-    const shown = showPomodoroNotification(
-      'Pomodoro session finished',
-      `${modeConfig.label} is complete.`,
-      notificationIdentity,
-    )
-    if (shown) notificationAnnouncementRef.current = notificationIdentity
-  }, [alarmActive, data.settings.pomodoro.notificationsEnabled, modeConfig.label, permissionSetupStatus, session])
 
   function setDurationValue(value: number) {
     const nextDuration = clampDuration(value)

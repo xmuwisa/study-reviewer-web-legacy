@@ -18,9 +18,9 @@ export function PomodoroPermissionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className="gap-5">
         <DialogHeader>
-          <DialogTitle>Enable Sound &amp; Notifications</DialogTitle>
+          <DialogTitle>Enable Sound</DialogTitle>
           <DialogDescription>
-            For the best Pomodoro experience, allow sound and notifications to play ambience automatically and receive timer alerts. You can request permissions later through Settings, subject to your browser&apos;s permissions.
+            For the best Pomodoro experience, enable sound to play your selected ambience and Pomodoro alarm. You can set up sound later through Settings.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

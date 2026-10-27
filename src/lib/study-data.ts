@@ -55,7 +55,6 @@ export type PomodoroPreferences = {
   sessionsBeforeLongBreak: number
   autoSwitch: boolean
   autoStart: boolean
-  notificationsEnabled: boolean
   ambienceMuted: boolean
   defaultAlarm: PomodoroAlarmSelection
   defaultAmbience: PomodoroAmbienceSelection
@@ -154,7 +153,6 @@ export function createDefaultSettings(): StudySettings {
       sessionsBeforeLongBreak: 4,
       autoSwitch: true,
       autoStart: false,
-      notificationsEnabled: false,
       ambienceMuted: false,
       defaultAlarm: 'none',
       defaultAmbience: 'none',
