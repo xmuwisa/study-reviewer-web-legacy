@@ -324,7 +324,7 @@ function EntryList({
                       onClick={() => onToggleRight(entry.id)}
                     >
                       {isQuestionOptions ? (
-                        <div className="flex w-full flex-col gap-3">
+                        <div className="flex w-full flex-col gap-2">
                           <span className="text-sm font-medium text-muted-foreground">
                             Correct answers {rightHidden ? 'hidden' : 'shown'} · <span className="text-primary">{rightHidden ? 'Reveal' : 'Hide'}</span>
                           </span>
@@ -334,7 +334,7 @@ function EntryList({
                               render={<div />}
                               variant="ghost"
                               className={cn(
-                                'h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl p-5 text-left text-base font-normal leading-relaxed',
+                                'h-auto min-h-0 w-full justify-start whitespace-normal rounded-xl px-4 py-3 text-left text-base font-normal leading-relaxed',
                                 !rightHidden && option.isCorrect
                                   ? 'bg-muted text-foreground hover:!bg-muted'
                                   : 'border border-border/70 bg-transparent text-card-foreground hover:!bg-muted/20',
