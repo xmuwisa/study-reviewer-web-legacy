@@ -93,27 +93,27 @@ function PageHeading({ title, description }: { title: string; description: strin
   )
 }
 
+const LIST_REVEAL_BUTTON_CLASS = 'h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl p-5 text-left text-base font-normal leading-relaxed'
+
 function QuestionOptionRow({ option, isRevealed }: { option: EntryOption; isRevealed: boolean }) {
   const isCorrectAndRevealed = isRevealed && option.isCorrect
 
   return (
-    <Button
-      render={<div />}
-      variant="ghost"
+    <div
       className={cn(
-        'h-auto min-h-0 w-full justify-start whitespace-normal rounded-xl px-4 py-3 text-left text-base font-normal leading-relaxed',
+        'flex min-h-0 w-full items-center justify-start gap-2 whitespace-normal rounded-xl bg-clip-padding px-4 py-3 text-left text-base font-normal leading-relaxed transition-colors select-none',
         isCorrectAndRevealed
-          ? 'border border-transparent bg-muted text-foreground hover:!bg-muted'
+          ? 'border border-transparent bg-muted text-foreground hover:bg-muted'
           : isRevealed
-            ? 'border border-border/70 bg-transparent text-card-foreground hover:!bg-muted'
-            : 'border border-border/70 bg-transparent text-card-foreground hover:!bg-muted/20',
+            ? 'border border-border/70 bg-transparent text-card-foreground hover:bg-muted'
+            : 'border border-border/70 bg-transparent text-card-foreground hover:bg-muted/20',
       )}
     >
       <span className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center', isCorrectAndRevealed && 'text-primary')}>
-        {isCorrectAndRevealed && <Check aria-label="Correct option" />}
+        {isCorrectAndRevealed && <Check aria-label="Correct option" className="size-4" />}
       </span>
       <span className="whitespace-pre-wrap">{option.text}</span>
-    </Button>
+    </div>
   )
 }
 
@@ -326,8 +326,8 @@ function EntryList({
                   <div className="p-5">
                     <Button
                       type="button"
-                      variant="ghost"
-                      className="h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20"
+                      variant="reveal"
+                      className={LIST_REVEAL_BUTTON_CLASS}
                       aria-expanded={!leftHidden}
                       aria-label={`${leftHidden ? 'Reveal' : 'Hide'} ${leftLabel.toLowerCase()} for ${entry.question}`}
                       onClick={() => onToggleLeft(entry.id)}
@@ -341,10 +341,10 @@ function EntryList({
                   <div className="p-5">
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="reveal"
                       className={cn(
-                        'h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20',
-                        isQuestionOptions && 'items-stretch aria-expanded:!bg-card hover:!bg-muted/20',
+                        LIST_REVEAL_BUTTON_CLASS,
+                        isQuestionOptions && 'items-stretch',
                       )}
                       aria-expanded={!rightHidden}
                       aria-label={`${rightHidden ? 'Reveal' : 'Hide'} ${rightLabel.toLowerCase()} for ${entry.question}`}
