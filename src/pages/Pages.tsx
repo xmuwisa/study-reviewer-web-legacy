@@ -5,6 +5,7 @@ import {
   BookOpenCheck,
   Check,
   CheckCircle2,
+  ChevronsDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -40,9 +41,10 @@ import { ContextualDataTransfer, FullBackupControls } from '@/components/study/S
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from '@/components/ui/field'
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet, FieldTitle } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Notification } from '@/components/ui/notification'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -50,6 +52,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type EntryOption, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
+import { isExactQuestionOptionsSelection } from '@/lib/question-options-flashcards'
 import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
 import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
 import { POMODORO_AUDIO_SETUP_EVENT } from '@/lib/pomodoro-permissions'
@@ -94,6 +97,7 @@ function PageHeading({ title, description }: { title: string; description: strin
 }
 
 const LIST_REVEAL_BUTTON_CLASS = 'h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl p-5 text-left text-base font-normal leading-relaxed'
+const QUESTION_OPTIONS_INCORRECT_FEEDBACK_CLASS = 'bg-destructive/20 text-destructive'
 
 function QuestionOptionRow({ option, isRevealed }: { option: EntryOption; isRevealed: boolean }) {
   const isCorrectAndRevealed = isRevealed && option.isCorrect
@@ -392,6 +396,7 @@ function EntryList({
 
 function getFlashcardLabel(entry: Entry, side: FlashcardFrontSide) {
   if (entry.type === 'term-definition') return side === 'left' ? 'Term' : 'Definition'
+  if (entry.type === 'question-options') return side === 'left' ? 'Question' : 'Options'
   return side === 'left' ? 'Question' : 'Answer'
 }
 
@@ -420,6 +425,8 @@ function FlashcardMode({
   const [incomingX, setIncomingX] = useState<number | null>(null)
   const [carouselDirection, setCarouselDirection] = useState<'next' | 'previous' | null>(null)
   const [interactionPhase, setInteractionPhaseState] = useState<FlashcardInteractionPhase>('idle')
+  const [selectedOptionIndexes, setSelectedOptionIndexes] = useState<Set<number>>(() => new Set())
+  const [questionOptionsResult, setQuestionOptionsResult] = useState<boolean | null>(null)
   const previousEntryIdsRef = useRef(entryIds)
   const currentEntryIdRef = useRef(currentEntryId)
   const interactionPhaseRef = useRef<FlashcardInteractionPhase>('idle')
@@ -430,6 +437,8 @@ function FlashcardMode({
   const navigationFrameRef = useRef<number | null>(null)
   const pendingNavigationIdRef = useRef<string | null>(null)
   const carouselStageRef = useRef<HTMLDivElement | null>(null)
+  const questionOptionsScrollRef = useRef<HTMLDivElement | null>(null)
+  const [showQuestionOptionsScrollHint, setShowQuestionOptionsScrollHint] = useState(false)
   currentEntryIdRef.current = currentEntryId
 
   function setInteractionPhase(nextPhase: FlashcardInteractionPhase) {
@@ -462,6 +471,8 @@ function FlashcardMode({
     setDragX(0)
     setIncomingX(null)
     setCarouselDirection(null)
+    setSelectedOptionIndexes(new Set())
+    setQuestionOptionsResult(null)
     pendingNavigationIdRef.current = null
     clearTransitionFallback()
     clearNavigationFrame()
@@ -485,6 +496,46 @@ function FlashcardMode({
 
   const currentIndex = Math.max(0, orderedEntries.findIndex((entry) => entry.id === currentEntryId))
   const currentEntry = orderedEntries[currentIndex]
+  const currentEntryType = currentEntry?.type
+  const currentQuestionOptionsLength = currentEntry?.options?.length ?? 0
+
+  const updateQuestionOptionsScrollHint = useCallback(() => {
+    const element = questionOptionsScrollRef.current
+    if (!element) {
+      setShowQuestionOptionsScrollHint(false)
+      return
+    }
+
+    const scrollportBottom = element.getBoundingClientRect().bottom
+    const contentBottom = element.lastElementChild?.getBoundingClientRect().bottom ?? scrollportBottom
+    const hasMoreContent = contentBottom > scrollportBottom + 1
+    const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1
+    setShowQuestionOptionsScrollHint(hasMoreContent && !isAtBottom)
+  }, [])
+
+  useEffect(() => {
+    if (currentEntryType !== 'question-options' || !flipped) {
+      setShowQuestionOptionsScrollHint(false)
+      return
+    }
+
+    const element = questionOptionsScrollRef.current
+    if (!element) return
+
+    const update = () => updateQuestionOptionsScrollHint()
+    const frameId = window.requestAnimationFrame(update)
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
+    resizeObserver?.observe(element)
+    element.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      resizeObserver?.disconnect()
+      element.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
+  }, [currentEntryType, currentQuestionOptionsLength, currentEntry?.explanation, flipped, questionOptionsResult, updateQuestionOptionsScrollHint])
 
   function moveTo(index: number) {
     const nextEntry = orderedEntries[index]
@@ -494,6 +545,8 @@ function FlashcardMode({
     setDragX(0)
     setIncomingX(null)
     setCarouselDirection(null)
+    setSelectedOptionIndexes(new Set())
+    setQuestionOptionsResult(null)
     setInteractionPhase('idle')
   }
 
@@ -512,6 +565,8 @@ function FlashcardMode({
     setDragX(0)
     setIncomingX(null)
     setCarouselDirection(null)
+    setSelectedOptionIndexes(new Set())
+    setQuestionOptionsResult(null)
     setInteractionPhase('idle')
   }
 
@@ -749,6 +804,7 @@ function FlashcardMode({
   const frontText = getFlashcardText(currentEntry, frontSide)
   const backLabel = getFlashcardLabel(currentEntry, backSide)
   const backText = getFlashcardText(currentEntry, backSide)
+  const questionOptions = currentEntry.type === 'question-options' ? currentEntry.options ?? [] : []
   const dragDirection = dragX < 0 ? 'next' : dragX > 0 ? 'previous' : null
   const previewDirection = interactionPhase === 'dragging' ? dragDirection : carouselDirection
   const previewEntry = previewDirection
@@ -762,8 +818,124 @@ function FlashcardMode({
   const previewStartX = previewDirection ? getCarouselTravel(previewDirection).incomingStartX : 0
   const previewX = incomingX ?? (dragX + previewStartX)
 
+  function renderQuestionOptionsFace(isVisible: boolean) {
+    const stopInteraction = (event: PointerEvent<HTMLFieldSetElement> | MouseEvent<HTMLFieldSetElement>) => {
+      event.stopPropagation()
+    }
+
+    function toggleOption(index: number, checked: boolean) {
+      if (questionOptionsResult !== null) return
+      setSelectedOptionIndexes((current) => {
+        const next = new Set(current)
+        if (checked) next.add(index)
+        else next.delete(index)
+        return next
+      })
+    }
+
+    function submitOptions(event: MouseEvent<HTMLButtonElement>) {
+      event.stopPropagation()
+      if (selectedOptionIndexes.size === 0 || questionOptionsResult !== null) return
+      setQuestionOptionsResult(isExactQuestionOptionsSelection(questionOptions, selectedOptionIndexes))
+    }
+
+    return (
+      <div
+        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-64 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-16 sm:py-8"
+        aria-hidden={!isVisible}
+      >
+        <div
+          ref={questionOptionsScrollRef}
+          className={cn(
+            'flex min-h-0 w-full flex-1 flex-col gap-4 overflow-y-auto',
+            showQuestionOptionsScrollHint ? 'pb-14' : 'pb-4',
+          )}
+        >
+          <span className="text-center text-base font-semibold uppercase tracking-[0.16em] text-primary">Options</span>
+          <FieldSet
+            className="w-full gap-3"
+            disabled={!isVisible || questionOptionsResult !== null}
+            onPointerDown={stopInteraction}
+            onClick={stopInteraction}
+          >
+            <FieldLegend className="sr-only">Select every correct option</FieldLegend>
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              {questionOptions.map((option, index) => {
+                const isSelected = selectedOptionIndexes.has(index)
+                const feedbackClass = questionOptionsResult === null
+                  ? 'border-border/70 bg-background/20 text-foreground hover:bg-muted/20'
+                  : option.isCorrect && isSelected
+                    ? 'border-accent bg-accent text-accent-foreground'
+                    : option.isCorrect
+                      ? 'border-accent/60 bg-accent/30 text-accent-foreground'
+                      : isSelected
+                        ? cn('border-destructive/70', QUESTION_OPTIONS_INCORRECT_FEEDBACK_CLASS)
+                        : 'border-border/70 bg-background/20 text-foreground'
+
+                return (
+                  <label
+                    key={`${currentEntry.id}-flashcard-option-${index}`}
+                    htmlFor={`${currentEntry.id}-flashcard-option-${index}`}
+                    className={cn(
+                      'flex min-w-0 min-h-12 items-center gap-3 rounded-xl border px-4 py-3 text-base leading-relaxed transition-colors',
+                      feedbackClass,
+                    )}
+                  >
+                    <Checkbox
+                      id={`${currentEntry.id}-flashcard-option-${index}`}
+                      checked={isSelected}
+                      disabled={!isVisible || questionOptionsResult !== null}
+                      onCheckedChange={(checked) => toggleOption(index, checked === true)}
+                      aria-label={`Select option ${index + 1}: ${option.text}`}
+                    />
+                    <span className="min-w-0 break-words whitespace-pre-wrap">{option.text}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </FieldSet>
+          {questionOptionsResult === null && (
+            <Button
+              type="button"
+              className="w-full"
+              disabled={!isVisible || selectedOptionIndexes.size === 0 || interactionPhase !== 'idle'}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={submitOptions}
+            >
+              Enter
+            </Button>
+          )}
+          {questionOptionsResult !== null && currentEntry.explanation && (
+            <p className="whitespace-pre-wrap text-base leading-relaxed text-muted-foreground">
+              <span className="font-semibold text-foreground">Explanation: </span>
+              {currentEntry.explanation}
+            </p>
+          )}
+        </div>
+        {showQuestionOptionsScrollHint && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="flashcard-scroll-hint absolute right-4 bottom-6 bg-transparent text-foreground shadow-none hover:bg-transparent hover:text-foreground"
+            aria-label="Scroll to the bottom of the options"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation()
+              questionOptionsScrollRef.current?.scrollTo({ top: questionOptionsScrollRef.current.scrollHeight, behavior: 'smooth' })
+            }}
+          >
+            <ChevronsDown aria-hidden="true" data-icon="inline-start" className="size-7" />
+          </Button>
+        )}
+      </div>
+    )
+  }
+
   function renderFace(label: string, text: string, isBack: boolean) {
     const isVisible = isBack ? flipped : !flipped
+
+    if (isBack && currentEntry.type === 'question-options') return renderQuestionOptionsFace(isVisible)
 
     return (
       <button
@@ -1380,7 +1552,14 @@ export function TopicStudyPage() {
   return (
     <div>
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <PageHeading title={topic.name} description={topic.description || 'A focused review path for questions and explanations.'} />
+        <div className="flex min-w-0 items-start justify-between gap-4 sm:block">
+          <div className="min-w-0">
+            <PageHeading title={topic.name} description={topic.description || 'A focused review path for questions and explanations.'} />
+          </div>
+          <div className="shrink-0 pt-1 text-right text-base text-muted-foreground sm:hidden">
+            <CountLabel count={getEntriesForTopic(data, topic.id).length} singular="question" plural="questions" />
+          </div>
+        </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
           <ToggleGroup
             value={[studyMode]}
@@ -1398,7 +1577,7 @@ export function TopicStudyPage() {
               <BookOpenCheck aria-hidden="true" data-icon="inline-start" /> Flashcards
             </ToggleGroupItem>
           </ToggleGroup>
-          <div className="text-base text-muted-foreground sm:text-right">
+          <div className="hidden text-base text-muted-foreground sm:block sm:text-right">
             <CountLabel count={getEntriesForTopic(data, topic.id).length} singular="question" plural="questions" />
           </div>
           <div className="flex w-full items-center justify-end gap-2">
