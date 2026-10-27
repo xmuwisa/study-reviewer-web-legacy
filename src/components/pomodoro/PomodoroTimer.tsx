@@ -213,7 +213,6 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings, o
   const audioBlocked = controller.audioBlocked || ambience.audioBlocked
 
   function handlePlayPauseClick() {
-    if (!isRunning && !hasStarted) ambience.startAutomatically()
     handlePlayPause()
   }
 

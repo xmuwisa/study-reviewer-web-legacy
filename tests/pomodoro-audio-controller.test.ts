@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 
+import { removeLegacyAutomaticAmbiencePreference } from '../src/lib/pomodoro-audio'
 import { PomodoroAudioManager } from '../src/lib/pomodoro-audio-controller'
 
 class FakeAudio {
@@ -65,6 +66,19 @@ function createManager() {
   })
   return { audios, manager }
 }
+
+test('legacy automatic ambience preference is removed without changing other ambience preferences', () => {
+  const migrated = removeLegacyAutomaticAmbiencePreference({
+    autoPlayAmbience: true,
+    defaultAmbience: 'forest-birds-ambience',
+    ambienceMuted: true,
+  })
+
+  expect(migrated).toEqual({
+    defaultAmbience: 'forest-birds-ambience',
+    ambienceMuted: true,
+  })
+})
 
 test('failed ambience playback is visible and succeeds on an explicit retry', async () => {
   const { manager } = createManager()

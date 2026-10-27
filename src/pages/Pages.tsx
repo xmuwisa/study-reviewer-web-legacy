@@ -49,7 +49,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
-import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
+import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
 import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
 import { POMODORO_PERMISSION_SETUP_EVENT } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
@@ -1722,7 +1722,7 @@ export function SettingsPage() {
                 </FieldContent>
                 <Toggle pressed={settings.pomodoro.autoStart} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoStart: pressed } })} aria-label="Start the next interval automatically" size="sm">{settings.pomodoro.autoStart ? 'On' : 'Off'}</Toggle>
               </Field>
-              <div className="grid gap-5 lg:grid-cols-2">
+              <div className="grid gap-5">
                 <Field>
                   <FieldLabel htmlFor="default-ambience">Default ambience</FieldLabel>
                   <div className="flex items-center gap-2">
@@ -1741,21 +1741,14 @@ export function SettingsPage() {
                     </Button>
                   </div>
                 </Field>
-                {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4 lg:h-full">
-                  <FieldContent>
-                    <FieldTitle>Automatically play ambience</FieldTitle>
-                    <FieldDescription>Play your selected ambience when you start a Pomodoro session.</FieldDescription>
-                  </FieldContent>
-                  <Toggle pressed={settings.pomodoro.autoPlayAmbience} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoPlayAmbience: pressed } })} aria-label="Automatically play ambience" size="sm">{settings.pomodoro.autoPlayAmbience ? 'On' : 'Off'}</Toggle>
-                </Field>}
               </div>
-              {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
+              <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
                 <FieldContent>
                   <FieldTitle>Sound alerts</FieldTitle>
                   <FieldDescription>Play your selected alarm when a Pomodoro session finishes.</FieldDescription>
                 </FieldContent>
                 <Toggle pressed={settings.pomodoro.soundEnabled} onPressedChange={(pressed) => savePreferences({ pomodoro: { soundEnabled: pressed } })} aria-label="Sound alerts" size="sm">{settings.pomodoro.soundEnabled ? 'On' : 'Off'}</Toggle>
-              </Field>}
+              </Field>
               <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
                 <FieldContent>
                   <FieldTitle>Browser notifications</FieldTitle>
@@ -1773,7 +1766,7 @@ export function SettingsPage() {
                 </Button>
               </div>
               <div className="grid gap-5 pt-1 sm:grid-cols-2">
-                {WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE && <Field>
+                <Field>
                   <FieldLabel htmlFor="default-alarm">Default alarm</FieldLabel>
                   <div className="flex items-center gap-2">
                     <Select value={settings.pomodoro.defaultAlarm} onValueChange={updatePomodoroAlarm}>
@@ -1790,7 +1783,7 @@ export function SettingsPage() {
                       {activePreview === 'alarm' ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
                     </Button>
                   </div>
-                </Field>}
+                </Field>
                 <Field>
                   <FieldLabel htmlFor="default-snooze-duration">Default snooze duration</FieldLabel>
                   <Select value={String(settings.pomodoro.defaultSnoozeMinutes)} onValueChange={(value) => {

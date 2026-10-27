@@ -57,7 +57,6 @@ export type PomodoroPreferences = {
   autoStart: boolean
   soundEnabled: boolean
   notificationsEnabled: boolean
-  autoPlayAmbience: boolean
   ambienceMuted: boolean
   defaultAlarm: PomodoroAlarmSelection
   defaultAmbience: PomodoroAmbienceSelection
@@ -158,7 +157,6 @@ export function createDefaultSettings(): StudySettings {
       autoStart: false,
       soundEnabled: false,
       notificationsEnabled: false,
-      autoPlayAmbience: false,
       ambienceMuted: false,
       defaultAlarm: 'none',
       defaultAmbience: 'none',
