@@ -1,9 +1,5 @@
-// Browser autoplay is intentionally deferred until the Electron desktop
-// migration. Keep the audio assets, preferences, and playback integration in
-// place so the desktop runtime can enable them without changing the model.
-export const WEB_AUTOMATIC_ALARM_AUDIO_ENABLED = false
-export const WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED = false
-export const WEB_AUTOMATIC_AUDIO_SETTINGS_VISIBLE = false
+// Keep the audio assets, preferences, and playback integration centralized so
+// the web and desktop runtimes can share the same Pomodoro audio model.
 
 export const POMODORO_ALARM_OPTIONS = [
   { value: 'none', label: 'None', src: null },
@@ -27,3 +23,23 @@ export const POMODORO_SNOOZE_OPTIONS = [5, 10, 15] as const
 export type PomodoroAlarmSelection = (typeof POMODORO_ALARM_OPTIONS)[number]['value']
 export type PomodoroAmbienceSelection = (typeof POMODORO_AMBIENCE_OPTIONS)[number]['value']
 export type PomodoroSnoozeMinutes = (typeof POMODORO_SNOOZE_OPTIONS)[number]
+
+export function getPomodoroAlarmOption(selection: PomodoroAlarmSelection) {
+  return POMODORO_ALARM_OPTIONS.find((option) => option.value === selection) ?? POMODORO_ALARM_OPTIONS[0]
+}
+
+export function getPomodoroAmbienceOption(selection: PomodoroAmbienceSelection) {
+  return POMODORO_AMBIENCE_OPTIONS.find((option) => option.value === selection) ?? POMODORO_AMBIENCE_OPTIONS[0]
+}
+
+export function removeLegacyAutomaticAmbiencePreference(preferences: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(preferences).filter(([key]) => key !== 'autoPlayAmbience'))
+}
+
+export function removeLegacySoundEnabledPreference(preferences: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(preferences).filter(([key]) => key !== 'soundEnabled'))
+}
+
+export function removeLegacyNotificationsEnabledPreference(preferences: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(preferences).filter(([key]) => key !== 'notificationsEnabled'))
+}

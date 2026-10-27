@@ -1,5 +1,5 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
-import { Music2, Pause, Play, RotateCcw, Settings, VolumeX, X } from 'lucide-react'
+import { Music2, Pause, Play, RotateCcw, Settings, Volume2, VolumeX, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -159,27 +159,19 @@ function TomatoDial({ duration, indicatorAngle, label, timerSeconds, onDurationC
   )
 }
 
-export function PomodoroLauncher({ controller, ambience, open, onClick }: { controller: PomodoroController; ambience: AmbienceController; open: boolean; onClick: () => void }) {
+export function PomodoroLauncher({ controller, audioBlocked, open, onClick, onEnableSound }: { controller: PomodoroController; audioBlocked: boolean; open: boolean; onClick: () => void; onEnableSound: () => void }) {
+  const soundBlocked = controller.audioBlocked || audioBlocked
+
   return (
     <div className="fixed right-4 bottom-6 z-50 sm:right-7 sm:bottom-8">
-      <div className="flex flex-col items-center gap-3">
-        <Button
-          type="button"
-          size="icon-lg"
-          variant="ghost"
-          data-ambience-toggle
-          aria-label={ambience.isPlaying ? 'Turn ambience off' : 'Turn ambience on'}
-          className="size-14 shrink-0 rounded-full bg-[var(--pomodoro-control)] text-[var(--primary-foreground)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] transition-transform hover:scale-105 hover:bg-[var(--pomodoro-control)]/90 hover:text-[var(--primary-foreground)]"
-          disabled={!ambience.available}
-          onClick={ambience.toggle}
-        >
-          {ambience.isPlaying ? <VolumeX aria-hidden="true" /> : <Music2 aria-hidden="true" />}
-        </Button>
-        <div className="relative">
-          {!open && controller.alarmActive ? (
-            <div className="absolute top-1/2 right-full mr-2 flex -translate-y-1/2 items-center gap-2" aria-label="Pomodoro alarm actions">
-              <Button type="button" size="sm" variant="secondary" className="bg-[var(--pomodoro-ink)] font-semibold text-[var(--pomodoro-panel)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] hover:bg-[var(--pomodoro-ink)]/90 hover:text-[var(--pomodoro-panel)]" onClick={controller.stopAlarm}>Stop</Button>
-              <Button type="button" size="sm" className="bg-[var(--pomodoro-control)] text-[var(--primary-foreground)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] hover:bg-[var(--pomodoro-control)]/90" onClick={controller.snoozeAlarm}>Snooze</Button>
+      <div className="relative">
+          {!open && (soundBlocked || controller.alarmActive) ? (
+            <div className="absolute top-1/2 right-full mr-2 flex -translate-y-1/2 items-center gap-2" aria-label="Pomodoro audio and alarm actions">
+              {soundBlocked && <Button type="button" size="sm" variant="outline" onClick={onEnableSound}>Enable sound</Button>}
+              {controller.alarmActive && <>
+                <Button type="button" size="sm" variant="secondary" className="bg-[var(--pomodoro-ink)] font-semibold text-[var(--pomodoro-panel)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] hover:bg-[var(--pomodoro-ink)]/90 hover:text-[var(--pomodoro-panel)]" onClick={controller.stopAlarm}>Stop</Button>
+                <Button type="button" size="sm" className="bg-[var(--pomodoro-control)] text-[var(--primary-foreground)] shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)] hover:bg-[var(--pomodoro-control)]/90" onClick={controller.snoozeAlarm}>Snooze</Button>
+              </>}
             </div>
           ) : !open && controller.isRunning ? (
             <div aria-live="polite" className="absolute top-1/2 right-full mr-2 flex -translate-y-1/2 items-center gap-2 rounded-full border border-[color-mix(in_oklab,var(--pomodoro-ink)_14%,transparent)] bg-[var(--pomodoro-panel)] px-3 py-2 text-right shadow-[0_16px_30px_-18px_rgb(0_0_0_/_0.95)]">
@@ -210,15 +202,19 @@ export function PomodoroLauncher({ controller, ambience, open, onClick }: { cont
               <TomatoCalyx className="top-[13%] h-[38%] w-[68%]" />
             </span>
           </Button>
-        </div>
       </div>
     </div>
   )
 }
 
-export function PomodoroTimer({ controller, onClose, onOpenSettings }: { controller: PomodoroController; onClose: () => void; onOpenSettings: () => void }) {
-  const { mode, duration, preciseDuration, isRunning, hasStarted, remainingSeconds, indicatorDurationMinutes, alarmActive, setDurationValue, handleModeChange, handleReset, handlePlayPause, handlePreciseDurationChange, commitPreciseDuration, stopAlarm, snoozeAlarm } = controller
+export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings, onRetryAudio }: { controller: PomodoroController; ambience: AmbienceController; onClose: () => void; onOpenSettings: () => void; onRetryAudio: () => void }) {
+  const { mode, duration, preciseDuration, isRunning, hasStarted, remainingSeconds, indicatorDurationMinutes, alarmActive, alarmSoundAvailable, alarmSilenced, setDurationValue, handleModeChange, handleReset, handlePlayPause, handlePreciseDurationChange, commitPreciseDuration, toggleAlarmSound, stopAlarm, snoozeAlarm } = controller
   const indicatorAngle = hasStarted ? getCountdownAngle(remainingSeconds, indicatorDurationMinutes) : getIndicatorAngle(duration)
+  const audioBlocked = controller.audioBlocked || ambience.audioBlocked
+
+  function handlePlayPauseClick() {
+    handlePlayPause()
+  }
 
   return (
     <Card className="pomodoro-panel relative my-auto w-full max-w-3xl overflow-hidden rounded-none border-0 px-1 py-1 lg:my-0 lg:rounded-[2rem] lg:border">
@@ -233,7 +229,17 @@ export function PomodoroTimer({ controller, onClose, onOpenSettings }: { control
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--pomodoro-muted)]">Session complete</p>
             <h2 id="pomodoro-alarm-title" className="font-heading text-2xl font-semibold tracking-tight text-[var(--pomodoro-ink)] sm:text-3xl">Time for a transition</h2>
           </div>
-          <div className="flex w-full max-w-sm gap-3">
+          {audioBlocked && (
+            <div role="alert" className="flex w-full max-w-sm items-center justify-between gap-3 rounded-xl bg-destructive/10 px-3 py-2 text-left text-sm text-destructive">
+              <span>Sound playback was blocked by your browser.</span>
+              <Button type="button" size="sm" variant="outline" onClick={onRetryAudio}>Retry sound</Button>
+            </div>
+          )}
+          <div className="flex w-full max-w-sm flex-wrap gap-3">
+            <Button type="button" variant="outline" className="min-w-0 flex-1 basis-full border-[color-mix(in_oklab,var(--pomodoro-ink)_15%,transparent)] bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)]" disabled={!alarmSoundAvailable} onClick={toggleAlarmSound}>
+              {alarmSilenced ? <Volume2 aria-hidden="true" data-icon="inline-start" /> : <VolumeX aria-hidden="true" data-icon="inline-start" />}
+              {alarmSilenced ? 'Resume alarm sound' : 'Silence alarm sound'}
+            </Button>
             <Button type="button" variant="secondary" className="min-w-0 flex-1 bg-[var(--pomodoro-ink)] font-semibold text-[var(--pomodoro-panel)] shadow-[0_8px_24px_-16px_rgb(0_0_0_/_0.9)] hover:bg-[var(--pomodoro-ink)]/90 hover:text-[var(--pomodoro-panel)]" onClick={stopAlarm}>Stop</Button>
             <Button type="button" className="min-w-0 flex-1 bg-[var(--pomodoro-control)] text-[var(--primary-foreground)] hover:bg-[var(--pomodoro-control)]/90" onClick={snoozeAlarm}>Snooze</Button>
           </div>
@@ -241,11 +247,24 @@ export function PomodoroTimer({ controller, onClose, onOpenSettings }: { control
       )}
       <CardHeader className="relative w-full gap-2 px-5 pb-0 pt-6 text-left sm:px-8 sm:pt-7">
         <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 sm:top-5 sm:right-5">
-          <Button type="button" size="icon-sm" variant="ghost" aria-label="Close Pomodoro panel" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" onClick={onClose}>
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="Close Pomodoro panel" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" disabled={alarmActive} onClick={onClose}>
             <X aria-hidden="true" />
           </Button>
-          <Button type="button" size="icon-sm" variant="ghost" aria-label="Open Pomodoro settings" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" onClick={onOpenSettings}>
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="Open Pomodoro settings" className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50" disabled={alarmActive} onClick={onOpenSettings}>
             <Settings aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={!ambience.available ? 'Ambience unavailable' : !ambience.isPlaying ? 'Play ambience' : ambience.isMuted ? 'Unmute ambience' : 'Mute ambience'}
+            aria-pressed={ambience.isPlaying && !ambience.isMuted}
+            className="rounded-full bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] focus-visible:ring-[var(--pomodoro-control)]/50"
+            disabled={!ambience.available}
+            onClick={ambience.toggle}
+            title={!ambience.available ? 'No ambience selected' : !ambience.isPlaying ? 'Play ambience' : ambience.isMuted ? 'Unmute ambience' : 'Mute ambience'}
+          >
+            {!ambience.isPlaying ? <Music2 aria-hidden="true" /> : ambience.isMuted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
           </Button>
         </div>
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--pomodoro-muted)]">Pomodoro</p>
@@ -262,6 +281,12 @@ export function PomodoroTimer({ controller, onClose, onOpenSettings }: { control
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+        {audioBlocked && !alarmActive && (
+          <div role="alert" className="flex items-center justify-between gap-3 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <span>Sound playback was blocked by your browser.</span>
+            <Button type="button" size="sm" variant="outline" onClick={onRetryAudio}>Retry sound</Button>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="flex w-full flex-col items-stretch gap-5 px-5 pb-6 pt-4 sm:gap-6 sm:px-8 sm:pb-7">
@@ -273,7 +298,7 @@ export function PomodoroTimer({ controller, onClose, onOpenSettings }: { control
               type="button"
               variant="outline"
               className="min-w-0 flex-1 border-[color-mix(in_oklab,var(--pomodoro-ink)_15%,transparent)] bg-[var(--pomodoro-panel-raised)] text-[var(--pomodoro-ink)] hover:bg-[var(--pomodoro-panel-raised)] hover:text-[var(--pomodoro-ink)] dark:bg-[var(--pomodoro-panel-raised)] dark:hover:bg-[var(--pomodoro-panel-raised)]"
-              onClick={handlePlayPause}
+              onClick={handlePlayPauseClick}
             >
               {isRunning ? <Pause aria-hidden="true" data-icon="inline-start" /> : <Play aria-hidden="true" data-icon="inline-start" />}
               {isRunning ? 'Pause' : 'Play'}

@@ -1,157 +1,65 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
-import { POMODORO_AMBIENCE_OPTIONS, WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED } from '@/lib/pomodoro-audio'
+import { getPomodoroAmbienceOption } from '@/lib/pomodoro-audio'
+import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
+import type { AudioInitializationResult, AudioPlaybackResult } from '@/lib/pomodoro-permissions'
 import { useStudyData } from '@/lib/use-study-data'
 
 export type AmbienceController = {
   isPlaying: boolean
+  isMuted: boolean
   available: boolean
+  audioBlocked: boolean
   toggle: () => void
+  initializeAudio: () => Promise<AudioInitializationResult>
+  enableAudio: () => Promise<AudioPlaybackResult>
 }
 
 export function useAmbienceController(): AmbienceController {
   const { data, updateSettings } = useStudyData()
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const sourceRef = useRef<string | null>(null)
-  const retryCleanupRef = useRef<(() => void) | null>(null)
-  const playbackPromiseRef = useRef<Promise<boolean> | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const selectedAmbience = POMODORO_AMBIENCE_OPTIONS.find((option) => option.value === data.settings.pomodoro.defaultAmbience) ?? POMODORO_AMBIENCE_OPTIONS[0]
+  const audioSnapshot = useSyncExternalStore(
+    pomodoroAudioManager.subscribe,
+    pomodoroAudioManager.getSnapshot,
+    pomodoroAudioManager.getSnapshot,
+  )
+  const selectedAmbience = getPomodoroAmbienceOption(data.settings.pomodoro.defaultAmbience)
   const source = selectedAmbience.src
   const isMuted = data.settings.pomodoro.ambienceMuted
-  const autoPlay = data.settings.pomodoro.autoPlayAmbience
-
-  const clearRetry = useCallback(() => {
-    retryCleanupRef.current?.()
-    retryCleanupRef.current = null
-  }, [])
-
-  const stopAudio = useCallback(() => {
-    clearRetry()
-    playbackPromiseRef.current = null
-    audioRef.current?.pause()
-    if (audioRef.current) audioRef.current.currentTime = 0
-    audioRef.current = null
-    sourceRef.current = null
-    setIsPlaying(false)
-  }, [clearRetry])
-
-  const startAudio = useCallback((nextSource: string) => {
-    const currentAudio = audioRef.current
-    if (currentAudio && sourceRef.current === nextSource) {
-      if (playbackPromiseRef.current) return playbackPromiseRef.current
-      if (!currentAudio.paused) {
-        setIsPlaying(true)
-        return Promise.resolve(true)
-      }
-
-      const playback = currentAudio.play().then(() => {
-        if (audioRef.current === currentAudio) setIsPlaying(true)
-        return true
-      }).catch(() => {
-        if (audioRef.current === currentAudio) {
-          audioRef.current = null
-          sourceRef.current = null
-          setIsPlaying(false)
-        }
-        return false
-      })
-      playbackPromiseRef.current = playback
-      void playback.finally(() => {
-        if (playbackPromiseRef.current === playback) playbackPromiseRef.current = null
-      })
-      return playback
-    }
-
-    stopAudio()
-    const audio = new Audio(nextSource)
-    audio.loop = true
-    audio.preload = 'auto'
-    audioRef.current = audio
-    sourceRef.current = nextSource
-    audio.load()
-
-    const playback = audio.play().then(() => {
-      if (audioRef.current === audio) setIsPlaying(true)
-      return true
-    }).catch(() => {
-      if (audioRef.current === audio) {
-        audioRef.current = null
-        sourceRef.current = null
-        setIsPlaying(false)
-      }
-      return false
-    })
-    playbackPromiseRef.current = playback
-    void playback.finally(() => {
-      if (playbackPromiseRef.current === playback) playbackPromiseRef.current = null
-    })
-    return playback
-  }, [stopAudio])
+  const ambienceState = audioSnapshot.ambience
+  const isPlaying = ambienceState.source === source && ambienceState.isPlaying
 
   useEffect(() => {
-    if (isMuted || !source) {
-      stopAudio()
-      return
-    }
-
-    if (!WEB_AUTOMATIC_AMBIENCE_AUDIO_ENABLED || !autoPlay) {
-      if (sourceRef.current && sourceRef.current !== source) stopAudio()
-      return
-    }
-
-    let cancelled = false
-    const queueRetry = (attempt: () => void) => {
-      if (retryCleanupRef.current) return
-
-      const retry = () => {
-        clearRetry()
-        if (!cancelled) attempt()
-      }
-      const cleanup = () => {
-        document.removeEventListener('pointerdown', retry, true)
-        document.removeEventListener('keydown', retry, true)
-      }
-
-      retryCleanupRef.current = cleanup
-      document.addEventListener('pointerdown', retry, { capture: true, once: true })
-      document.addEventListener('keydown', retry, { capture: true, once: true })
-    }
-
-    const attemptPlayback = async () => {
-      if (cancelled) return
-      const played = await startAudio(source)
-      if (cancelled) return
-      if (played) clearRetry()
-      else queueRetry(() => { void attemptPlayback() })
-    }
-
-    void attemptPlayback()
-
-    return () => {
-      cancelled = true
-      clearRetry()
-    }
-  }, [autoPlay, clearRetry, isMuted, source, startAudio, stopAudio])
-
-  useEffect(() => () => stopAudio(), [stopAudio])
+    pomodoroAudioManager.syncAmbienceSource(source, isMuted)
+  }, [isMuted, source])
 
   const toggle = useCallback(() => {
     if (!source) return
 
-    const nextMuted = isPlaying
-    if (!updateSettings({ pomodoro: { ambienceMuted: nextMuted } })) return
-    if (nextMuted) {
-      stopAudio()
+    if (!isPlaying) {
+      void pomodoroAudioManager.startAmbience(source, isMuted)
       return
     }
 
-    void startAudio(source)
-  }, [isPlaying, source, startAudio, stopAudio, updateSettings])
+    const nextMuted = !isMuted
+    if (!updateSettings({ pomodoro: { ambienceMuted: nextMuted } })) return
+    pomodoroAudioManager.setAmbienceMuted(nextMuted)
+  }, [isMuted, isPlaying, source, updateSettings])
+
+  const initializeAudio = useCallback(async (): Promise<AudioInitializationResult> => {
+    return pomodoroAudioManager.prepareAmbienceAudio(source, isMuted) ? 'initialized' : 'not-configured'
+  }, [isMuted, source])
+
+  const enableAudio = useCallback(async (): Promise<AudioPlaybackResult> => {
+    return pomodoroAudioManager.startAmbience(source, isMuted)
+  }, [isMuted, source])
 
   return {
     isPlaying,
+    isMuted,
     available: Boolean(source),
+    audioBlocked: ambienceState.source === source && ambienceState.blocked,
     toggle,
+    initializeAudio,
+    enableAudio,
   }
 }
