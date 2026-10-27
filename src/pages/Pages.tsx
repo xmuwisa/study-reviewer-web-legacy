@@ -329,7 +329,7 @@ function EntryList({
                             Correct answers {rightHidden ? 'hidden' : 'shown'} · <span className="text-primary">{rightHidden ? 'Reveal' : 'Hide'}</span>
                           </span>
                           {(entry.options ?? []).map((option, index) => (
-                            <div key={`${entry.id}-option-${index}`} className="flex items-start gap-3 rounded-lg bg-muted/35 px-3 py-2.5 text-card-foreground">
+                            <div key={`${entry.id}-option-${index}`} className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/35 px-3 py-2.5 text-card-foreground">
                               <span className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center', !rightHidden && 'text-primary')}>
                                 {!rightHidden && option.isCorrect && <Check aria-label="Correct option" />}
                               </span>
