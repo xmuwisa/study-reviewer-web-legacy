@@ -1710,17 +1710,10 @@ export function SettingsPage() {
               </div>
               <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
                 <FieldContent>
-                  <FieldTitle>Automatically switch between sessions</FieldTitle>
-                  <FieldDescription>Keep this off if you prefer to start each interval yourself.</FieldDescription>
+                  <FieldTitle>Automatically start the next session</FieldTitle>
+                  <FieldDescription>Switch to the next session and start its countdown automatically.</FieldDescription>
                 </FieldContent>
-                <Toggle pressed={settings.pomodoro.autoSwitch} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoSwitch: pressed } })} aria-label="Automatically switch between sessions" size="sm">{settings.pomodoro.autoSwitch ? 'On' : 'Off'}</Toggle>
-              </Field>
-              <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
-                <FieldContent>
-                  <FieldTitle>Start the next interval automatically</FieldTitle>
-                  <FieldDescription>Disabled by default so each transition stays intentional.</FieldDescription>
-                </FieldContent>
-                <Toggle pressed={settings.pomodoro.autoStart} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoStart: pressed } })} aria-label="Start the next interval automatically" size="sm">{settings.pomodoro.autoStart ? 'On' : 'Off'}</Toggle>
+                <Toggle pressed={settings.pomodoro.autoStartNextSession} onPressedChange={(pressed) => savePreferences({ pomodoro: { autoStartNextSession: pressed } })} aria-label="Automatically start the next session" size="sm">{settings.pomodoro.autoStartNextSession ? 'On' : 'Off'}</Toggle>
               </Field>
               <div className="grid gap-5">
                 <Field>
