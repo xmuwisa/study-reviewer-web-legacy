@@ -1744,13 +1744,6 @@ export function SettingsPage() {
               </div>
               <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
                 <FieldContent>
-                  <FieldTitle>Sound alerts</FieldTitle>
-                  <FieldDescription>Play your selected alarm when a Pomodoro session finishes.</FieldDescription>
-                </FieldContent>
-                <Toggle pressed={settings.pomodoro.soundEnabled} onPressedChange={(pressed) => savePreferences({ pomodoro: { soundEnabled: pressed } })} aria-label="Sound alerts" size="sm">{settings.pomodoro.soundEnabled ? 'On' : 'Off'}</Toggle>
-              </Field>
-              <Field orientation="horizontal" className="items-start justify-between gap-4 rounded-xl bg-background/60 p-4">
-                <FieldContent>
                   <FieldTitle>Browser notifications</FieldTitle>
                   <FieldDescription>Show a system notification when a Pomodoro session finishes, if permitted by your browser.</FieldDescription>
                 </FieldContent>

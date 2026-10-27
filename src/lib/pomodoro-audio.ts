@@ -35,3 +35,7 @@ export function getPomodoroAmbienceOption(selection: PomodoroAmbienceSelection) 
 export function removeLegacyAutomaticAmbiencePreference(preferences: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(preferences).filter(([key]) => key !== 'autoPlayAmbience'))
 }
+
+export function removeLegacySoundEnabledPreference(preferences: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(preferences).filter(([key]) => key !== 'soundEnabled'))
+}

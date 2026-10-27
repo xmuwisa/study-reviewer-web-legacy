@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 
-import { removeLegacyAutomaticAmbiencePreference } from '../src/lib/pomodoro-audio'
+import { removeLegacyAutomaticAmbiencePreference, removeLegacySoundEnabledPreference } from '../src/lib/pomodoro-audio'
 import { PomodoroAudioManager } from '../src/lib/pomodoro-audio-controller'
 
 class FakeAudio {
@@ -77,6 +77,19 @@ test('legacy automatic ambience preference is removed without changing other amb
   expect(migrated).toEqual({
     defaultAmbience: 'forest-birds-ambience',
     ambienceMuted: true,
+  })
+})
+
+test('legacy sound preference is removed without changing the selected alarm', () => {
+  const migratedPreferences = removeLegacySoundEnabledPreference({
+    soundEnabled: false,
+    defaultAlarm: 'happy-bells-alarm',
+    notificationsEnabled: true,
+  })
+
+  expect(migratedPreferences).toEqual({
+    defaultAlarm: 'happy-bells-alarm',
+    notificationsEnabled: true,
   })
 })
 
