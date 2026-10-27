@@ -22,6 +22,7 @@ export type StudyContextValue = {
   createEntry: (topicId: RecordId, input: EntryInput) => boolean
   updateEntry: (entryId: RecordId, input: EntryInput) => boolean
   deleteEntry: (entryId: RecordId) => boolean
+  deleteEntries: (entryIds: RecordId[]) => boolean
   openCategory: (categoryId: RecordId) => boolean
   openTopic: (topicId: RecordId) => boolean
   updateSettings: (patch: StudySettingsPatch) => boolean

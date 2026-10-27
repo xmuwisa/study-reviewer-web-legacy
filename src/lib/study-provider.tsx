@@ -8,6 +8,7 @@ import {
   createTopic,
   deleteCategory,
   deleteEntry,
+  deleteEntries,
   deleteTopic,
   markCategoryAccessed,
   markTopicAccessed,
@@ -116,6 +117,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     [commit, data],
   )
   const deleteEntryAction = useCallback((entryId: RecordId) => commit(deleteEntry(data, entryId)), [commit, data])
+  const deleteEntriesAction = useCallback((entryIds: RecordId[]) => commit(deleteEntries(data, entryIds)), [commit, data])
   const openCategory = useCallback((categoryId: RecordId) => commit(markCategoryAccessed(data, categoryId)), [commit, data])
   const openTopic = useCallback((topicId: RecordId) => commit(markTopicAccessed(data, topicId)), [commit, data])
   const updateSettingsAction = useCallback((patch: Parameters<typeof updateSettings>[1]) => commit(updateSettings(data, patch)), [commit, data])
@@ -176,6 +178,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       createEntry: createEntryAction,
       updateEntry: updateEntryAction,
       deleteEntry: deleteEntryAction,
+      deleteEntries: deleteEntriesAction,
       openCategory,
       openTopic,
       updateSettings: updateSettingsAction,
@@ -199,6 +202,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       data,
       deleteCategoryAction,
       deleteEntryAction,
+      deleteEntriesAction,
       deleteTopicAction,
       openCategory,
       openTopic,

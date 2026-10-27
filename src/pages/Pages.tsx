@@ -299,16 +299,22 @@ function EntryList({
   entries,
   hiddenLeft,
   hiddenRight,
+  selectionMode,
+  selectedEntryIds,
   onToggleLeft,
   onToggleRight,
+  onToggleSelection,
   onEdit,
   onDelete,
 }: {
   entries: Entry[]
   hiddenLeft: Set<string>
   hiddenRight: Set<string>
+  selectionMode: boolean
+  selectedEntryIds: Set<string>
   onToggleLeft: (entryId: string) => void
   onToggleRight: (entryId: string) => void
+  onToggleSelection: (entryId: string) => void
   onEdit: (entry: Entry) => void
   onDelete: (entry: Entry) => void
 }) {
@@ -383,9 +389,19 @@ function EntryList({
                   </div>
                 </div>
               </div>
-              <div className="absolute top-2 right-4 opacity-100 sm:opacity-0 sm:transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100">
-                <EntryActions entry={entry} onEdit={() => onEdit(entry)} onDelete={() => onDelete(entry)} />
-              </div>
+              {selectionMode ? (
+                <div className="absolute top-2 right-4 flex size-10 items-center justify-center">
+                  <Checkbox
+                    aria-label={`Select entry: ${entry.question}`}
+                    checked={selectedEntryIds.has(entry.id)}
+                    onCheckedChange={() => onToggleSelection(entry.id)}
+                  />
+                </div>
+              ) : (
+                <div className="absolute top-2 right-4 opacity-100 sm:opacity-0 sm:transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100">
+                  <EntryActions entry={entry} onEdit={() => onEdit(entry)} onDelete={() => onDelete(entry)} />
+                </div>
+              )}
             </CardContent>
           </Card>
         )
@@ -1460,7 +1476,7 @@ export function CategoryDetailPage() {
 
 export function TopicStudyPage() {
   const { categoryId = '', topicId = '' } = useParams()
-  const { data, createEntry, updateEntry, deleteEntry, openTopic, importTopic } = useStudyData()
+  const { data, createEntry, updateEntry, deleteEntry, deleteEntries, openTopic, importTopic } = useStudyData()
   const [searchParams, setSearchParams] = useSearchParams()
   const category = findCategory(data, categoryId)
   const topic = findTopic(data, topicId)
@@ -1470,6 +1486,9 @@ export function TopicStudyPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null)
   const [deletingEntry, setDeletingEntry] = useState<Entry | null>(null)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedEntryIds, setSelectedEntryIds] = useState<Set<string>>(() => new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [studyMode, setStudyMode] = useState<StudyMode>(() => data.settings.defaultStudyMode)
   const topicEntryIds = useMemo(() => getEntriesForTopic(data, topicId).map((entry) => entry.id), [data, topicId])
   const [hiddenLeft, setHiddenLeft] = useState<Set<string>>(() => data.settings.showQuestionsByDefault ? new Set() : new Set(topicEntryIds))
@@ -1495,6 +1514,9 @@ export function TopicStudyPage() {
     setStudyMode(studySettingsRef.current.defaultStudyMode)
     setHiddenLeft(studySettingsRef.current.showQuestionsByDefault ? new Set() : new Set(topicEntryIdsRef.current))
     setHiddenRight(studySettingsRef.current.showAnswersByDefault ? new Set() : new Set(topicEntryIdsRef.current))
+    setSelectionMode(false)
+    setSelectedEntryIds(new Set())
+    setBulkDeleteOpen(false)
   }, [topicId])
 
   useEffect(() => {
@@ -1510,6 +1532,14 @@ export function TopicStudyPage() {
     })
     previousEntryIdsRef.current = new Set(topicEntryIds)
   }, [topicEntryIds])
+
+  useEffect(() => {
+    const visibleEntryIds = new Set(entries.map((entry) => entry.id))
+    setSelectedEntryIds((current) => {
+      const next = new Set([...current].filter((entryId) => visibleEntryIds.has(entryId)))
+      return next.size === current.size ? current : next
+    })
+  }, [entries])
 
   useEffect(() => {
     if (searchParams.get('action') !== 'create') return
@@ -1544,6 +1574,38 @@ export function TopicStudyPage() {
     setHiddenEntries(allEntriesAreHidden ? new Set() : new Set(entries.map((entry) => entry.id)))
   }
 
+  function exitSelectionMode() {
+    setSelectionMode(false)
+    setSelectedEntryIds(new Set())
+    setBulkDeleteOpen(false)
+  }
+
+  function toggleSelection(entryId: string) {
+    setSelectedEntryIds((current) => {
+      const next = new Set(current)
+      if (next.has(entryId)) next.delete(entryId)
+      else next.add(entryId)
+      return next
+    })
+  }
+
+  const selectedVisibleCount = entries.reduce((count, entry) => count + (selectedEntryIds.has(entry.id) ? 1 : 0), 0)
+  const allVisibleSelected = entries.length > 0 && selectedVisibleCount === entries.length
+
+  function toggleSelectAll() {
+    setSelectedEntryIds(allVisibleSelected ? new Set() : new Set(entries.map((entry) => entry.id)))
+  }
+
+  function confirmBulkDelete() {
+    const visibleEntryIds = new Set(entries.map((entry) => entry.id))
+    const selectedVisibleEntryIds = [...selectedEntryIds].filter((entryId) => visibleEntryIds.has(entryId))
+    if (selectedVisibleEntryIds.length === 0) return true
+
+    const deleted = deleteEntries(selectedVisibleEntryIds)
+    if (deleted) exitSelectionMode()
+    return deleted
+  }
+
   const effectiveHiddenLeft = visibilityTopicId === topicId ? hiddenLeft : new Set<string>()
   const effectiveHiddenRight = visibilityTopicId === topicId ? hiddenRight : new Set(topicEntryIds)
   const allLeftHidden = entries.length > 0 && entries.every((entry) => effectiveHiddenLeft.has(entry.id))
@@ -1565,7 +1627,10 @@ export function TopicStudyPage() {
             value={[studyMode]}
             onValueChange={(value) => {
               const nextMode = value[0]
-              if (nextMode === 'list' || nextMode === 'flashcard') setStudyMode(nextMode)
+              if (nextMode === 'list' || nextMode === 'flashcard') {
+                setStudyMode(nextMode)
+                if (nextMode === 'flashcard') exitSelectionMode()
+              }
             }}
             aria-label="Study mode"
             className="w-full justify-end sm:w-auto"
@@ -1630,9 +1695,32 @@ export function TopicStudyPage() {
                 {allRightHidden ? <Eye aria-hidden="true" data-icon="inline-start" /> : <EyeOff aria-hidden="true" data-icon="inline-start" />}
                 {allRightHidden ? 'Reveal Right' : 'Hide Right'}
               </Button>
+              <Toggle
+                type="button"
+                size="sm"
+                pressed={selectionMode}
+                aria-label={selectionMode ? 'Exit selection mode' : 'Select entries'}
+                onPressedChange={(pressed) => { if (pressed) setSelectionMode(true); else exitSelectionMode() }}
+              >
+                <CheckCircle2 aria-hidden="true" data-icon="inline-start" /> Select
+              </Toggle>
             </>
           ) : undefined}
         />
+
+        {studyMode === 'list' && selectionMode && (
+          <div role="toolbar" aria-label="Bulk entry actions" className="flex flex-col gap-2 rounded-2xl bg-card/60 p-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <Toggle type="button" size="sm" pressed={allVisibleSelected} disabled={entries.length === 0} onPressedChange={toggleSelectAll}>
+                {allVisibleSelected ? 'Unselect All' : 'Select All'}
+              </Toggle>
+              <span aria-live="polite" className="px-2 text-sm text-muted-foreground">{selectedVisibleCount} selected</span>
+            </div>
+            <Button type="button" size="sm" variant="destructive" disabled={selectedVisibleCount === 0} onClick={() => setBulkDeleteOpen(true)}>
+              <Trash2 aria-hidden="true" data-icon="inline-start" /> Delete
+            </Button>
+          </div>
+        )}
 
         {entries.length === 0 ? (
           <EntryEmptyState hasSearch={Boolean(search.trim())} onCreate={showCreateForm} onClearSearch={() => setSearch('')} />
@@ -1641,8 +1729,11 @@ export function TopicStudyPage() {
             entries={entries}
             hiddenLeft={effectiveHiddenLeft}
             hiddenRight={effectiveHiddenRight}
+            selectionMode={selectionMode}
+            selectedEntryIds={selectedEntryIds}
             onToggleLeft={(entryId) => toggleHiddenEntry(setHiddenLeft, entryId)}
             onToggleRight={(entryId) => toggleHiddenEntry(setHiddenRight, entryId)}
+            onToggleSelection={toggleSelection}
             onEdit={(entry) => { setEditingEntry(entry); setFormOpen(true) }}
             onDelete={setDeletingEntry}
           />
@@ -1678,6 +1769,14 @@ export function TopicStudyPage() {
           open
           onOpenChange={(open) => { if (!open) setDeletingEntry(null) }}
           onConfirm={() => deleteEntry(deletingEntry.id)}
+        />
+      )}
+      {bulkDeleteOpen && (
+        <EntryDeleteDialog
+          count={selectedVisibleCount}
+          open
+          onOpenChange={(open) => { if (!open) setBulkDeleteOpen(false) }}
+          onConfirm={confirmBulkDelete}
         />
       )}
     </div>

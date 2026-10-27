@@ -181,10 +181,16 @@ function hasValidQuestionOptions(options: EntryOption[] | undefined): options is
   )
 }
 
-export function deleteEntry(data: StudyData, entryId: RecordId): StudyData {
-  if (!data.entries.some((entry) => entry.id === entryId)) return data
+export function deleteEntries(data: StudyData, entryIds: RecordId[]): StudyData {
+  const ids = new Set(entryIds)
+  if (ids.size === 0) return data
 
-  return { ...data, entries: data.entries.filter((entry) => entry.id !== entryId) }
+  const entries = data.entries.filter((entry) => !ids.has(entry.id))
+  return entries.length === data.entries.length ? data : { ...data, entries }
+}
+
+export function deleteEntry(data: StudyData, entryId: RecordId): StudyData {
+  return deleteEntries(data, [entryId])
 }
 
 export function markCategoryAccessed(data: StudyData, categoryId: RecordId, accessedAt = Date.now()): StudyData {
