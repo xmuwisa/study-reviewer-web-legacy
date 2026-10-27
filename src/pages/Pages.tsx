@@ -314,8 +314,9 @@ function EntryList({
         const leftHidden = hiddenLeft.has(entry.id)
         const rightHidden = hiddenRight.has(entry.id)
         const isQuestionOptions = entry.type === 'question-options'
+        const isQuestionCode = entry.type === 'question-code'
         const leftLabel = entry.type === 'term-definition' ? 'Term' : 'Question'
-        const rightLabel = entry.type === 'term-definition' ? 'Definition' : isQuestionOptions ? 'Options' : 'Answer'
+        const rightLabel = entry.type === 'term-definition' ? 'Definition' : isQuestionOptions ? 'Options' : isQuestionCode ? 'Code' : 'Answer'
 
         return (
           <Card key={entry.id} className="relative overflow-hidden bg-transparent py-0">
@@ -372,7 +373,7 @@ function EntryList({
                       ) : rightHidden ? (
                         <span className="text-muted-foreground">{rightLabel} hidden · Reveal</span>
                       ) : (
-                        <span className="whitespace-pre-wrap">{entry.answer}</span>
+                        <span className={cn('whitespace-pre-wrap', isQuestionCode && 'font-mono')}>{entry.answer}</span>
                       )}
                     </Button>
                   </div>

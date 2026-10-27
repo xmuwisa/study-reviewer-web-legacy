@@ -58,7 +58,7 @@ function isPomodoroMode(value: unknown): value is PomodoroMode {
 }
 
 function isEntryType(value: unknown): value is EntryType {
-  return value === 'question-answer' || value === 'term-definition' || value === 'question-options'
+  return value === 'question-answer' || value === 'term-definition' || value === 'question-options' || value === 'question-code'
 }
 
 function isEntryOption(value: unknown): value is EntryOption {
@@ -114,7 +114,7 @@ function validateEntry(value: unknown, path: string, issues: ValidationIssue[]):
 
   if (!isNonEmptyString(value.id)) addIssue(issues, `${path}.id`, 'must be a non-empty string')
   if (!isNonEmptyString(value.topicId)) addIssue(issues, `${path}.topicId`, 'must be a non-empty string')
-  if (!isEntryType(value.type)) addIssue(issues, `${path}.type`, 'must be question-answer, term-definition, or question-options')
+  if (!isEntryType(value.type)) addIssue(issues, `${path}.type`, 'must be question-answer, term-definition, question-options, or question-code')
   if (!isNonEmptyString(value.question)) addIssue(issues, `${path}.question`, 'must be a non-empty string')
   if (value.type === 'question-options') {
     if (!Array.isArray(value.options) || value.options.length < 2 || value.options.length > 6) {

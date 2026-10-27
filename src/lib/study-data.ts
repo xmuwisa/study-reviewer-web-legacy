@@ -14,8 +14,8 @@ export type Timestamp = number
 
 export type ThemePreference = 'light' | 'dark' | 'system'
 export type StudyMode = 'list' | 'flashcard'
-export type EntryType = 'question-answer' | 'term-definition' | 'question-options'
-export type FlashcardEntryType = Exclude<EntryType, 'question-options'>
+export type EntryType = 'question-answer' | 'term-definition' | 'question-options' | 'question-code'
+export type FlashcardEntryType = Exclude<EntryType, 'question-options' | 'question-code'>
 export type FlashcardFrontSide = 'left' | 'right'
 export type PomodoroMode = 'focus' | 'short-break' | 'long-break'
 export type PomodoroSessionStatus = 'running' | 'paused' | 'completed' | 'reset'
@@ -230,13 +230,14 @@ export function createEntryRecord(
   id: RecordId = createStableId(),
 ): Entry {
   const isQuestionOptions = input.type === 'question-options'
+  const isQuestionCode = input.type === 'question-code'
 
   return {
     id,
     topicId,
     type: input.type ?? 'question-answer',
     question: input.question.trim(),
-    answer: isQuestionOptions ? '' : input.answer.trim(),
+    answer: isQuestionOptions ? '' : isQuestionCode ? input.answer : input.answer.trim(),
     ...(isQuestionOptions
       ? {
           options: input.options?.map((option) => ({ text: option.text.trim(), isCorrect: option.isCorrect })),

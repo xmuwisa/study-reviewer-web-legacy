@@ -22,7 +22,7 @@ export type TopicSort = 'alphabetical' | 'reverse-alphabetical' | 'recent'
 export type EntrySort = 'newest' | 'oldest' | 'alphabetical'
 
 export type StudySettingsPatch = Partial<Omit<StudySettings, 'flashcardFrontByEntryType' | 'pomodoro'>> & {
-  flashcardFrontByEntryType?: Partial<Record<Exclude<EntryType, 'question-options'>, FlashcardFrontSide>>
+  flashcardFrontByEntryType?: Partial<Record<Exclude<EntryType, 'question-options' | 'question-code'>, FlashcardFrontSide>>
   pomodoro?: Partial<StudySettings['pomodoro']>
 }
 
@@ -144,7 +144,7 @@ export function createEntry(data: StudyData, topicId: RecordId, input: EntryInpu
 export function updateEntry(data: StudyData, entryId: RecordId, input: EntryInput, now = Date.now()): StudyData {
   const question = input.question.trim()
   const type = input.type ?? data.entries.find((entry) => entry.id === entryId)?.type
-  const answer = type === 'question-options' ? '' : input.answer.trim()
+  const answer = type === 'question-options' ? '' : type === 'question-code' ? input.answer : input.answer.trim()
   const options = type === 'question-options' ? normalizeQuestionOptions(input.options) : undefined
   const explanation = type === 'question-options' ? input.explanation?.trim() ?? '' : undefined
   if (!question || !data.entries.some((entry) => entry.id === entryId)) return data

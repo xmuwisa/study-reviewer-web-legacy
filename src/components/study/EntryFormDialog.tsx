@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { EntryOption, EntryType } from '@/lib/study-data'
+import { cn } from '@/lib/utils'
 
 export type EntryFormValues = {
   type: EntryType
@@ -63,9 +64,10 @@ export function EntryFormDialog({
   const isEditing = Boolean(initialValues.question || initialValues.answer)
   const isTermDefinition = values.type === 'term-definition'
   const isQuestionOptions = values.type === 'question-options'
+  const isQuestionCode = values.type === 'question-code'
   const leftLabel = isTermDefinition ? 'Term' : 'Question'
-  const rightLabel = isTermDefinition ? 'Definition' : 'Answer'
-  const entryTypeLabel = isTermDefinition ? 'term and definition' : isQuestionOptions ? 'question and options' : 'question and answer'
+  const rightLabel = isTermDefinition ? 'Definition' : isQuestionCode ? 'Code' : 'Answer'
+  const entryTypeLabel = isTermDefinition ? 'term and definition' : isQuestionOptions ? 'question and options' : isQuestionCode ? 'question and code' : 'question and answer'
 
   function preventClipboardAction(event: ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
     if (!allowCopyPaste) event.preventDefault()
@@ -84,9 +86,10 @@ export function EntryFormDialog({
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const question = values.question.trim()
-    const answer = values.answer.trim()
+    const answerForValidation = values.answer.trim()
+    const answer = isQuestionCode ? values.answer : answerForValidation
     const nextQuestionError = question ? null : 'Enter a question or term.'
-    const nextAnswerError = isQuestionOptions ? null : answer ? null : 'Enter an answer or explanation.'
+    const nextAnswerError = isQuestionOptions ? null : answerForValidation ? null : 'Enter an answer or explanation.'
     const options = values.options.map((option) => ({ text: option.text.trim(), isCorrect: option.isCorrect }))
     const nextOptionsError = isQuestionOptions
       ? options.length < 2 || options.length > 6
@@ -146,19 +149,20 @@ export function EntryFormDialog({
                 <Select
                   value={values.type}
                   onValueChange={(value) => {
-                    if (value === 'question-answer' || value === 'term-definition' || value === 'question-options') {
+                    if (value === 'question-answer' || value === 'term-definition' || value === 'question-options' || value === 'question-code') {
                       setValues((current) => ({ ...current, type: value }))
                     }
                   }}
                 >
                   <SelectTrigger id="entry-type" className="w-full border-0 bg-muted/45">
-                    <SelectValue>{isTermDefinition ? 'Term & Definition' : 'Question & Answer'}</SelectValue>
+                    <SelectValue>{isTermDefinition ? 'Term & Definition' : isQuestionOptions ? 'Question & Options' : isQuestionCode ? 'Question & Code' : 'Question & Answer'}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
                       <SelectItem value="question-answer">Question &amp; Answer</SelectItem>
                       <SelectItem value="term-definition">Term &amp; Definition</SelectItem>
                       <SelectItem value="question-options">Question &amp; Options</SelectItem>
+                      <SelectItem value="question-code">Question &amp; Code</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -261,7 +265,7 @@ export function EntryFormDialog({
                   <FieldLabel htmlFor="entry-answer">{rightLabel}</FieldLabel>
                   <Textarea
                     id="entry-answer"
-                    className="border-0 bg-muted/45"
+                    className={cn('border-0 bg-muted/45', isQuestionCode && 'font-mono')}
                     aria-invalid={Boolean(answerError)}
                     spellCheck={spellcheck}
                     onCopy={preventClipboardAction}
@@ -269,7 +273,7 @@ export function EntryFormDialog({
                     onPaste={preventClipboardAction}
                     value={values.answer}
                     onChange={(event) => setValues((current) => ({ ...current, answer: event.target.value }))}
-                    placeholder={isTermDefinition ? 'Write the definition you want to remember' : 'Write the explanation you want to remember'}
+                    placeholder={isTermDefinition ? 'Write the definition you want to remember' : isQuestionCode ? 'Write the code you want to remember' : 'Write the explanation you want to remember'}
                     rows={5}
                   />
                   <FieldError>{answerError}</FieldError>
