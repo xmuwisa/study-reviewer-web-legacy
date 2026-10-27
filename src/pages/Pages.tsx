@@ -329,18 +329,22 @@ function EntryList({
                             Correct answers {rightHidden ? 'hidden' : 'shown'} · <span className="text-primary">{rightHidden ? 'Reveal' : 'Hide'}</span>
                           </span>
                           {(entry.options ?? []).map((option, index) => (
-                            <div
+                            <Button
                               key={`${entry.id}-option-${index}`}
+                              render={<div />}
+                              variant="ghost"
                               className={cn(
-                                'flex items-start gap-3 rounded-xl border border-border/70 bg-transparent px-3 py-2.5 text-card-foreground transition-colors hover:bg-muted/20',
-                                !rightHidden && option.isCorrect && 'border-transparent bg-muted text-foreground hover:bg-muted',
+                                'h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl p-5 text-left text-base font-normal leading-relaxed',
+                                !rightHidden && option.isCorrect
+                                  ? 'bg-muted text-foreground hover:!bg-muted'
+                                  : 'border border-border/70 bg-transparent text-card-foreground hover:!bg-muted/20',
                               )}
                             >
                               <span className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center', !rightHidden && 'text-primary')}>
                                 {!rightHidden && option.isCorrect && <Check aria-label="Correct option" />}
                               </span>
                               <span className="whitespace-pre-wrap">{option.text}</span>
-                            </div>
+                            </Button>
                           ))}
                           {!rightHidden && entry.explanation && (
                             <div className="border-t border-border/70 pt-3 text-muted-foreground">
