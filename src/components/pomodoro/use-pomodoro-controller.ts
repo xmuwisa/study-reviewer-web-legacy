@@ -12,9 +12,7 @@ import { clampDuration, formatTimer, TIMER_MODES } from './pomodoro-model'
 export type PomodoroController = {
   mode: PomodoroMode
   duration: number
-  displayDuration: number
   preciseDuration: string
-  durationEditingDisabled: boolean
   isRunning: boolean
   hasStarted: boolean
   remainingSeconds: number
@@ -62,8 +60,6 @@ export function usePomodoroController(): PomodoroController {
   const modeConfig = TIMER_MODES[mode]
   const duration = data.settings.pomodoro[modeConfig.durationKey]
   const selectedAlarm = getPomodoroAlarmOption(data.settings.pomodoro.defaultAlarm)
-  const displayDuration = session?.durationMinutes ?? duration
-  const durationEditingDisabled = Boolean(session)
   const remainingSeconds = session ? getPomodoroRemainingSeconds(session, now) : duration * 60
   const alarmActive = Boolean(session && (session.status === 'completed' || (session.status === 'running' && remainingSeconds === 0)))
   const isRunning = Boolean(session?.status === 'running' && !alarmActive)
@@ -110,8 +106,6 @@ export function usePomodoroController(): PomodoroController {
   }, [alarmActive, selectedAlarm.src, session?.completedAt, session?.endsAt, session?.mode, session?.startedAt])
 
   function setDurationValue(value: number) {
-    if (durationEditingDisabled) return
-
     const nextDuration = clampDuration(value)
     const saved = updateSettings({ pomodoro: { [modeConfig.durationKey]: nextDuration } })
     setPreciseDuration(saved ? String(nextDuration) : String(duration))
@@ -163,8 +157,6 @@ export function usePomodoroController(): PomodoroController {
   }
 
   function handlePreciseDurationChange(value: string) {
-    if (durationEditingDisabled) return
-
     setPreciseDuration(value)
     if (value === '') return
 
@@ -173,8 +165,6 @@ export function usePomodoroController(): PomodoroController {
   }
 
   function commitPreciseDuration() {
-    if (durationEditingDisabled) return
-
     const parsedValue = Number(preciseDuration)
     setDurationValue(Number.isFinite(parsedValue) ? parsedValue : duration)
   }
@@ -205,14 +195,12 @@ export function usePomodoroController(): PomodoroController {
   return {
     mode,
     duration,
-    displayDuration,
     preciseDuration,
-    durationEditingDisabled,
     isRunning,
     hasStarted,
     remainingSeconds,
     remainingLabel: formatTimer(remainingSeconds),
-    indicatorDurationMinutes: displayDuration,
+    indicatorDurationMinutes: session ? data.timer.selectedDurationMinutes : duration,
     alarmActive,
     alarmSoundAvailable: Boolean(selectedAlarm.src),
     alarmSilenced: alarmState.silenced,

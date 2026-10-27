@@ -39,14 +39,12 @@ function TomatoCalyx({ className }: { className?: string }) {
   )
 }
 
-function TomatoDial({ duration, disabled, indicatorAngle, label, timerSeconds, onDurationChange }: { duration: number; disabled: boolean; indicatorAngle: number; label: string; timerSeconds: number; onDurationChange: (duration: number) => void }) {
+function TomatoDial({ duration, indicatorAngle, label, timerSeconds, onDurationChange }: { duration: number; indicatorAngle: number; label: string; timerSeconds: number; onDurationChange: (duration: number) => void }) {
   const pointerId = useRef<number | null>(null)
   const lastPointerAngle = useRef<number | null>(null)
   const dragDuration = useRef(duration)
 
   function updateFromPointer(event: PointerEvent<HTMLDivElement>) {
-    if (disabled) return
-
     const currentAngle = getPointerAngle(event)
     const previousAngle = lastPointerAngle.current
     if (previousAngle === null) {
@@ -67,7 +65,7 @@ function TomatoDial({ duration, disabled, indicatorAngle, label, timerSeconds, o
   }
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-    if (disabled || event.button !== 0) return
+    if (event.button !== 0) return
     pointerId.current = event.pointerId
     lastPointerAngle.current = getPointerAngle(event)
     dragDuration.current = duration
@@ -75,7 +73,7 @@ function TomatoDial({ duration, disabled, indicatorAngle, label, timerSeconds, o
   }
 
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
-    if (disabled || pointerId.current !== event.pointerId) return
+    if (pointerId.current !== event.pointerId) return
     updateFromPointer(event)
   }
 
@@ -89,8 +87,6 @@ function TomatoDial({ duration, disabled, indicatorAngle, label, timerSeconds, o
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (disabled) return
-
     const step = event.shiftKey ? 5 : 1
     let nextDuration = duration
 
@@ -115,15 +111,14 @@ function TomatoDial({ duration, disabled, indicatorAngle, label, timerSeconds, o
       aria-valuemin={MIN_DURATION_MINUTES}
       aria-valuenow={duration}
       aria-valuetext={`${duration} minutes`}
-      aria-disabled={disabled}
-      className={cn('relative mx-auto aspect-square w-full max-w-[20rem] touch-none select-none rounded-full outline-none transition-transform focus-visible:ring-4 focus-visible:ring-[var(--pomodoro-control)]/40', disabled ? 'cursor-default' : 'active:scale-[0.995]')}
+      className="relative mx-auto aspect-square w-full max-w-[20rem] touch-none select-none rounded-full outline-none transition-transform active:scale-[0.995] focus-visible:ring-4 focus-visible:ring-[var(--pomodoro-control)]/40"
       onKeyDown={handleKeyDown}
       onPointerCancel={handlePointerEnd}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerEnd}
       role="slider"
-      tabIndex={disabled ? -1 : 0}
+      tabIndex={0}
     >
       <div className="absolute inset-0 rounded-full bg-[var(--pomodoro-ring)] shadow-[0_22px_40px_-28px_rgb(0_0_0_/_0.9)]">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-full">
@@ -213,8 +208,8 @@ export function PomodoroLauncher({ controller, audioBlocked, open, onClick, onEn
 }
 
 export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings, onRetryAudio }: { controller: PomodoroController; ambience: AmbienceController; onClose: () => void; onOpenSettings: () => void; onRetryAudio: () => void }) {
-  const { mode, displayDuration, preciseDuration, durationEditingDisabled, isRunning, hasStarted, remainingSeconds, indicatorDurationMinutes, alarmActive, alarmSoundAvailable, alarmSilenced, setDurationValue, handleModeChange, handleReset, handlePlayPause, handlePreciseDurationChange, commitPreciseDuration, toggleAlarmSound, stopAlarm, snoozeAlarm } = controller
-  const indicatorAngle = hasStarted ? getCountdownAngle(remainingSeconds, indicatorDurationMinutes) : getIndicatorAngle(displayDuration)
+  const { mode, duration, preciseDuration, isRunning, hasStarted, remainingSeconds, indicatorDurationMinutes, alarmActive, alarmSoundAvailable, alarmSilenced, setDurationValue, handleModeChange, handleReset, handlePlayPause, handlePreciseDurationChange, commitPreciseDuration, toggleAlarmSound, stopAlarm, snoozeAlarm } = controller
+  const indicatorAngle = hasStarted ? getCountdownAngle(remainingSeconds, indicatorDurationMinutes) : getIndicatorAngle(duration)
   const audioBlocked = controller.audioBlocked || ambience.audioBlocked
 
   function handlePlayPauseClick() {
@@ -295,7 +290,7 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings, o
       </CardHeader>
 
       <CardContent className="flex w-full flex-col items-stretch gap-5 px-5 pb-6 pt-4 sm:gap-6 sm:px-8 sm:pb-7">
-        <TomatoDial disabled={durationEditingDisabled} duration={displayDuration} indicatorAngle={indicatorAngle} label={TIMER_MODES[mode].label} timerSeconds={remainingSeconds} onDurationChange={setDurationValue} />
+        <TomatoDial duration={duration} indicatorAngle={indicatorAngle} label={TIMER_MODES[mode].label} timerSeconds={remainingSeconds} onDurationChange={setDurationValue} />
 
         <div className="flex w-full max-w-3xl flex-col gap-5">
           <div className="flex w-full gap-3">
@@ -330,14 +325,13 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings, o
                   inputMode="numeric"
                   max={MAX_DURATION_MINUTES}
                   min={MIN_DURATION_MINUTES}
-                  disabled={durationEditingDisabled}
                   onBlur={commitPreciseDuration}
                   onChange={(event) => handlePreciseDurationChange(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') event.currentTarget.blur()
                   }}
                   type="number"
-                  value={durationEditingDisabled ? String(displayDuration) : preciseDuration}
+                  value={preciseDuration}
                 />
                 <span className="text-base font-normal tabular-nums text-[var(--pomodoro-ink)]">minutes</span>
               </div>
@@ -345,13 +339,12 @@ export function PomodoroTimer({ controller, ambience, onClose, onOpenSettings, o
             <Slider
               aria-label="Session length"
               className="pomodoro-slider py-3"
-              disabled={durationEditingDisabled}
               id="pomodoro-duration-slider"
               max={MAX_DURATION_MINUTES}
               min={MIN_DURATION_MINUTES}
-              onValueChange={(value) => setDurationValue(Array.isArray(value) ? value[0] ?? displayDuration : value)}
+              onValueChange={(value) => setDurationValue(Array.isArray(value) ? value[0] ?? duration : value)}
               step={1}
-              value={[displayDuration]}
+              value={[duration]}
             />
             <div className="flex justify-between text-base text-[var(--pomodoro-muted)]">
               <span>1 minute</span>
