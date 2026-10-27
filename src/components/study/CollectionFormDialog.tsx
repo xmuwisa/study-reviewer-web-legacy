@@ -76,16 +76,16 @@ export function CollectionFormDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="!top-0 !left-0 !h-dvh !max-h-none !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-background overflow-x-hidden overflow-y-auto px-4 py-4 sm:px-4 sm:py-6 lg:!top-1/2 lg:!left-1/2 lg:!h-auto lg:!max-h-[calc(100dvh-6rem)] lg:!max-w-lg lg:!-translate-x-1/2 lg:!-translate-y-1/2 lg:!rounded-xl lg:!bg-popover lg:p-6"
+        className="!top-0 !left-0 !h-dvh !max-h-none !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-background overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:!top-1/2 lg:!left-1/2 lg:!h-auto lg:!max-h-[calc(100dvh-6rem)] lg:!max-w-lg lg:!-translate-x-1/2 lg:!-translate-y-1/2 lg:!rounded-xl lg:!bg-popover lg:p-6"
         showCloseButton={false}
       >
         <div className="flex min-h-full w-full items-start justify-center lg:block lg:min-h-0">
-          <div className="relative mx-auto my-auto flex w-full max-w-2xl flex-col gap-4 md:px-8 lg:my-0 lg:max-w-none lg:gap-6 lg:px-0">
+          <div className="relative mx-auto my-auto flex w-full max-w-2xl flex-col gap-4 px-5 py-8 sm:px-8 sm:py-10 md:px-8 lg:my-0 lg:max-w-none lg:gap-6 lg:px-0 lg:py-0">
             <DialogClose
               render={
                 <Button
                   aria-label="Close form"
-                  className="absolute top-4 right-4 rounded-full bg-muted/70 text-foreground hover:bg-muted focus-visible:ring-ring/50 sm:top-5 sm:right-5"
+                  className="absolute top-4 right-5 rounded-full bg-muted/70 text-foreground hover:bg-muted focus-visible:ring-ring/50 sm:top-5 sm:right-8 lg:right-0"
                   size="icon-sm"
                   variant="ghost"
                 />
@@ -93,7 +93,7 @@ export function CollectionFormDialog({
             >
               <X aria-hidden="true" />
             </DialogClose>
-            <DialogHeader className="gap-2 lg:gap-3">
+            <DialogHeader className="gap-2 pr-14 sm:pr-16 lg:gap-3 lg:pr-16">
               <DialogTitle>{title}</DialogTitle>
               <DialogDescription>
                 {isEditing ? `Update the name or description for this ${label}.` : `Give your new ${label} a clear name so it is easy to find later.`}
