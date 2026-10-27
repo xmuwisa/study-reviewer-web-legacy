@@ -336,7 +336,7 @@ function EntryList({
                               className={cn(
                                 'h-auto min-h-0 w-full justify-start whitespace-normal rounded-xl px-4 py-3 text-left text-base font-normal leading-relaxed',
                                 !rightHidden && option.isCorrect
-                                  ? 'border border-transparent bg-muted text-foreground hover:!bg-muted'
+                                  ? 'border border-transparent bg-muted text-foreground hover:!bg-muted/20'
                                   : 'border border-border/70 bg-transparent text-card-foreground hover:!bg-muted/20',
                               )}
                             >
