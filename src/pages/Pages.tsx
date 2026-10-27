@@ -318,7 +318,7 @@ function EntryList({
                     <Button
                       type="button"
                       variant="ghost"
-                      className={cn('h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20', isQuestionOptions && 'items-stretch')}
+                      className={cn('h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20', isQuestionOptions && 'items-stretch aria-expanded:!bg-card hover:!bg-muted/20')}
                       aria-expanded={!rightHidden}
                       aria-label={`${rightHidden ? 'Reveal' : 'Hide'} ${rightLabel.toLowerCase()} for ${entry.question}`}
                       onClick={() => onToggleRight(entry.id)}
@@ -329,7 +329,13 @@ function EntryList({
                             Correct answers {rightHidden ? 'hidden' : 'shown'} · <span className="text-primary">{rightHidden ? 'Reveal' : 'Hide'}</span>
                           </span>
                           {(entry.options ?? []).map((option, index) => (
-                            <div key={`${entry.id}-option-${index}`} className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/35 px-3 py-2.5 text-card-foreground">
+                            <div
+                              key={`${entry.id}-option-${index}`}
+                              className={cn(
+                                'flex items-start gap-3 rounded-lg border border-border/70 bg-muted/35 px-3 py-2.5 text-card-foreground',
+                                !rightHidden && option.isCorrect && 'border-primary/30 bg-primary/5',
+                              )}
+                            >
                               <span className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center', !rightHidden && 'text-primary')}>
                                 {!rightHidden && option.isCorrect && <Check aria-label="Correct option" />}
                               </span>
