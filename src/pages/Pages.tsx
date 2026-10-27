@@ -3,6 +3,7 @@ import {
   ArrowDownAZ,
   ArrowUpRight,
   BookOpenCheck,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -48,7 +49,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
+import { createDefaultSettings, findCategory, findTopic, getEntriesForTopic, getTopicsForCategory, type Category, type Entry, type EntryOption, type FlashcardFrontSide, type StudyMode, type Topic } from '@/lib/study-data'
 import { getPomodoroAlarmOption, getPomodoroAmbienceOption, POMODORO_ALARM_OPTIONS, POMODORO_AMBIENCE_OPTIONS, POMODORO_SNOOZE_OPTIONS, type PomodoroAlarmSelection, type PomodoroAmbienceSelection } from '@/lib/pomodoro-audio'
 import { pomodoroAudioManager } from '@/lib/pomodoro-audio-controller'
 import { POMODORO_AUDIO_SETUP_EVENT } from '@/lib/pomodoro-permissions'
@@ -64,7 +65,16 @@ import {
 } from '@/lib/study-operations'
 
 const EMPTY_FORM_VALUES: CollectionFormValues = { name: '', description: '' }
-const EMPTY_ENTRY_FORM_VALUES: EntryFormValues = { type: 'question-answer', question: '', answer: '' }
+const EMPTY_ENTRY_FORM_VALUES: EntryFormValues = {
+  type: 'question-answer',
+  question: '',
+  answer: '',
+  options: [
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false },
+  ],
+  explanation: '',
+}
 
 function SectionLabel({ children }: { children: string }) {
   return <p className="text-base font-medium text-muted-foreground">{children}</p>
@@ -79,6 +89,30 @@ function PageHeading({ title, description }: { title: string; description: strin
     <div className="max-w-2xl">
       <h1 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{title}</h1>
       <p className="mt-3 max-w-xl text-base leading-relaxed text-muted-foreground">{description}</p>
+    </div>
+  )
+}
+
+const LIST_REVEAL_BUTTON_CLASS = 'h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl p-5 text-left text-base font-normal leading-relaxed'
+
+function QuestionOptionRow({ option, isRevealed }: { option: EntryOption; isRevealed: boolean }) {
+  const isCorrectAndRevealed = isRevealed && option.isCorrect
+
+  return (
+    <div
+      className={cn(
+        'flex min-h-0 w-full items-center justify-start gap-2 whitespace-normal rounded-xl bg-clip-padding px-4 py-3 text-left text-base font-normal leading-relaxed transition-colors select-none',
+        isCorrectAndRevealed
+          ? 'border border-transparent bg-muted text-foreground hover:bg-muted'
+          : isRevealed
+            ? 'border border-border/70 bg-transparent text-card-foreground hover:bg-muted'
+            : 'border border-border/70 bg-transparent text-card-foreground hover:bg-muted/20',
+      )}
+    >
+      <span className={cn('mt-0.5 flex size-5 shrink-0 items-center justify-center', isCorrectAndRevealed && 'text-primary')}>
+        {isCorrectAndRevealed && <Check aria-label="Correct option" className="size-4" />}
+      </span>
+      <span className="whitespace-pre-wrap">{option.text}</span>
     </div>
   )
 }
@@ -279,8 +313,10 @@ function EntryList({
       {entries.map((entry) => {
         const leftHidden = hiddenLeft.has(entry.id)
         const rightHidden = hiddenRight.has(entry.id)
+        const isQuestionOptions = entry.type === 'question-options'
+        const isQuestionCode = entry.type === 'question-code'
         const leftLabel = entry.type === 'term-definition' ? 'Term' : 'Question'
-        const rightLabel = entry.type === 'term-definition' ? 'Definition' : 'Answer'
+        const rightLabel = entry.type === 'term-definition' ? 'Definition' : isQuestionOptions ? 'Options' : isQuestionCode ? 'Code' : 'Answer'
 
         return (
           <Card key={entry.id} className="relative overflow-hidden bg-transparent py-0">
@@ -291,8 +327,8 @@ function EntryList({
                   <div className="p-5">
                     <Button
                       type="button"
-                      variant="ghost"
-                      className="h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20"
+                      variant="reveal"
+                      className={LIST_REVEAL_BUTTON_CLASS}
                       aria-expanded={!leftHidden}
                       aria-label={`${leftHidden ? 'Reveal' : 'Hide'} ${leftLabel.toLowerCase()} for ${entry.question}`}
                       onClick={() => onToggleLeft(entry.id)}
@@ -306,13 +342,39 @@ function EntryList({
                   <div className="p-5">
                     <Button
                       type="button"
-                      variant="ghost"
-                      className="h-auto min-h-20 w-full justify-start whitespace-normal rounded-xl bg-card p-5 text-left text-base font-normal leading-relaxed hover:bg-muted/20"
+                      variant={isQuestionOptions ? 'options-reveal' : 'reveal'}
+                      className={cn(
+                        LIST_REVEAL_BUTTON_CLASS,
+                        isQuestionOptions && 'items-stretch',
+                      )}
                       aria-expanded={!rightHidden}
                       aria-label={`${rightHidden ? 'Reveal' : 'Hide'} ${rightLabel.toLowerCase()} for ${entry.question}`}
                       onClick={() => onToggleRight(entry.id)}
                     >
-                      {rightHidden ? <span className="text-muted-foreground">{rightLabel} hidden · Reveal</span> : <span className="whitespace-pre-wrap">{entry.answer}</span>}
+                      {isQuestionOptions ? (
+                        <div className="flex w-full flex-col gap-2">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Correct answers {rightHidden ? 'hidden' : 'shown'} · <span className="text-primary">{rightHidden ? 'Reveal' : 'Hide'}</span>
+                          </span>
+                          {(entry.options ?? []).map((option, index) => (
+                            <QuestionOptionRow
+                              key={`${entry.id}-option-${index}`}
+                              option={option}
+                              isRevealed={!rightHidden}
+                            />
+                          ))}
+                          {!rightHidden && entry.explanation && (
+                            <div className="border-t border-border/70 pt-3 text-muted-foreground">
+                              <span className="font-semibold text-foreground">Explanation: </span>
+                              <span className="whitespace-pre-wrap">{entry.explanation}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : rightHidden ? (
+                        <span className="text-muted-foreground">{rightLabel} hidden · Reveal</span>
+                      ) : (
+                        <span className={cn('whitespace-pre-wrap', isQuestionCode && 'font-mono')}>{entry.answer}</span>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -347,7 +409,7 @@ function FlashcardMode({
   frontByEntryType,
 }: {
   entries: Entry[]
-  frontByEntryType: Record<Entry['type'], FlashcardFrontSide>
+  frontByEntryType: Partial<Record<Entry['type'], FlashcardFrontSide>>
 }) {
   const entryIds = useMemo(() => entries.map((entry) => entry.id), [entries])
   const entryIdentity = entryIds.join('|')
@@ -1419,7 +1481,13 @@ export function TopicStudyPage() {
 
       <EntryFormDialog
         open={formOpen}
-        initialValues={editingEntry ? { type: editingEntry.type, question: editingEntry.question, answer: editingEntry.answer } : EMPTY_ENTRY_FORM_VALUES}
+        initialValues={editingEntry ? {
+          type: editingEntry.type,
+          question: editingEntry.question,
+          answer: editingEntry.answer,
+          options: editingEntry.options ?? EMPTY_ENTRY_FORM_VALUES.options,
+          explanation: editingEntry.explanation ?? '',
+        } : EMPTY_ENTRY_FORM_VALUES}
         allowCopyPaste={data.settings.allowCopyPaste}
         spellcheck={data.settings.spellcheck}
         onOpenChange={(open) => { setFormOpen(open); if (!open) setEditingEntry(null) }}

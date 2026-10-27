@@ -14,7 +14,8 @@ export type Timestamp = number
 
 export type ThemePreference = 'light' | 'dark' | 'system'
 export type StudyMode = 'list' | 'flashcard'
-export type EntryType = 'question-answer' | 'term-definition'
+export type EntryType = 'question-answer' | 'term-definition' | 'question-options' | 'question-code'
+export type FlashcardEntryType = Exclude<EntryType, 'question-options' | 'question-code'>
 export type FlashcardFrontSide = 'left' | 'right'
 export type PomodoroMode = 'focus' | 'short-break' | 'long-break'
 export type PomodoroSessionStatus = 'running' | 'paused' | 'completed' | 'reset'
@@ -44,8 +45,15 @@ export type Entry = {
   type: EntryType
   question: string
   answer: string
+  options?: EntryOption[]
+  explanation?: string
   createdAt: Timestamp
   updatedAt: Timestamp
+}
+
+export type EntryOption = {
+  text: string
+  isCorrect: boolean
 }
 
 export type PomodoroPreferences = {
@@ -68,7 +76,7 @@ export type StudySettings = {
   showAnswersByDefault: boolean
   allowCopyPaste: boolean
   spellcheck: boolean
-  flashcardFrontByEntryType: Record<EntryType, FlashcardFrontSide>
+  flashcardFrontByEntryType: Record<FlashcardEntryType, FlashcardFrontSide>
   pomodoro: PomodoroPreferences
 }
 
@@ -122,6 +130,8 @@ export type EntryInput = {
   type?: EntryType
   question: string
   answer: string
+  options?: EntryOption[]
+  explanation?: string
 }
 
 export function createStableId(): RecordId {
@@ -219,12 +229,21 @@ export function createEntryRecord(
   now: Timestamp = Date.now(),
   id: RecordId = createStableId(),
 ): Entry {
+  const isQuestionOptions = input.type === 'question-options'
+  const isQuestionCode = input.type === 'question-code'
+
   return {
     id,
     topicId,
     type: input.type ?? 'question-answer',
     question: input.question.trim(),
-    answer: input.answer.trim(),
+    answer: isQuestionOptions ? '' : isQuestionCode ? input.answer : input.answer.trim(),
+    ...(isQuestionOptions
+      ? {
+          options: input.options?.map((option) => ({ text: option.text.trim(), isCorrect: option.isCorrect })),
+          explanation: input.explanation?.trim() ?? '',
+        }
+      : {}),
     createdAt: now,
     updatedAt: now,
   }

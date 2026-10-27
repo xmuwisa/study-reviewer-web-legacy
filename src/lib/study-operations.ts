@@ -5,6 +5,7 @@ import {
   type Category,
   type CategoryInput,
   type Entry,
+  type EntryOption,
   type EntryInput,
   type EntryType,
   type FlashcardFrontSide,
@@ -21,7 +22,7 @@ export type TopicSort = 'alphabetical' | 'reverse-alphabetical' | 'recent'
 export type EntrySort = 'newest' | 'oldest' | 'alphabetical'
 
 export type StudySettingsPatch = Partial<Omit<StudySettings, 'flashcardFrontByEntryType' | 'pomodoro'>> & {
-  flashcardFrontByEntryType?: Partial<Record<EntryType, FlashcardFrontSide>>
+  flashcardFrontByEntryType?: Partial<Record<Exclude<EntryType, 'question-options' | 'question-code'>, FlashcardFrontSide>>
   pomodoro?: Partial<StudySettings['pomodoro']>
 }
 
@@ -134,22 +135,50 @@ export function deleteTopic(data: StudyData, topicId: RecordId): StudyData {
 
 export function createEntry(data: StudyData, topicId: RecordId, input: EntryInput, now = Date.now()): StudyData {
   const record = createEntryRecord(topicId, input, now)
-  if (!record.question || !record.answer || !data.topics.some((topic) => topic.id === topicId)) return data
+  if (!record.question || !data.topics.some((topic) => topic.id === topicId)) return data
+  if (record.type === 'question-options' ? !hasValidQuestionOptions(record.options) : !record.answer) return data
 
   return { ...data, entries: [...data.entries, record] }
 }
 
 export function updateEntry(data: StudyData, entryId: RecordId, input: EntryInput, now = Date.now()): StudyData {
   const question = input.question.trim()
-  const answer = input.answer.trim()
-  if (!question || !answer || !data.entries.some((entry) => entry.id === entryId)) return data
+  const type = input.type ?? data.entries.find((entry) => entry.id === entryId)?.type
+  const answer = type === 'question-options' ? '' : type === 'question-code' ? input.answer : input.answer.trim()
+  const options = type === 'question-options' ? normalizeQuestionOptions(input.options) : undefined
+  const explanation = type === 'question-options' ? input.explanation?.trim() ?? '' : undefined
+  if (!question || !data.entries.some((entry) => entry.id === entryId)) return data
+  if (type === 'question-options' ? !hasValidQuestionOptions(options) : !answer) return data
 
   return {
     ...data,
     entries: data.entries.map((entry) =>
-      entry.id === entryId ? { ...entry, type: input.type ?? entry.type, question, answer, updatedAt: now } : entry,
+      entry.id === entryId
+        ? {
+            ...entry,
+            type: type ?? entry.type,
+            question,
+            answer,
+            ...(type === 'question-options' ? { options, explanation } : { options: undefined, explanation: undefined }),
+            updatedAt: now,
+          }
+        : entry,
     ),
   }
+}
+
+function normalizeQuestionOptions(options: EntryOption[] | undefined) {
+  return options?.map((option) => ({ text: option.text.trim(), isCorrect: option.isCorrect }))
+}
+
+function hasValidQuestionOptions(options: EntryOption[] | undefined): options is EntryOption[] {
+  return Boolean(
+    options &&
+      options.length >= 2 &&
+      options.length <= 6 &&
+      options.every((option) => option.text.length > 0) &&
+      options.some((option) => option.isCorrect),
+  )
 }
 
 export function deleteEntry(data: StudyData, entryId: RecordId): StudyData {

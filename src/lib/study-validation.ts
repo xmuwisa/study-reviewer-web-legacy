@@ -4,6 +4,7 @@ import {
   type ActivityState,
   type Category,
   type Entry,
+  type EntryOption,
   type EntryType,
   type FlashcardFrontSide,
   type PomodoroMode,
@@ -57,7 +58,11 @@ function isPomodoroMode(value: unknown): value is PomodoroMode {
 }
 
 function isEntryType(value: unknown): value is EntryType {
-  return value === 'question-answer' || value === 'term-definition'
+  return value === 'question-answer' || value === 'term-definition' || value === 'question-options' || value === 'question-code'
+}
+
+function isEntryOption(value: unknown): value is EntryOption {
+  return isRecord(value) && isNonEmptyString(value.text) && typeof value.isCorrect === 'boolean'
 }
 
 function isFlashcardFrontSide(value: unknown): value is FlashcardFrontSide {
@@ -109,9 +114,25 @@ function validateEntry(value: unknown, path: string, issues: ValidationIssue[]):
 
   if (!isNonEmptyString(value.id)) addIssue(issues, `${path}.id`, 'must be a non-empty string')
   if (!isNonEmptyString(value.topicId)) addIssue(issues, `${path}.topicId`, 'must be a non-empty string')
-  if (!isEntryType(value.type)) addIssue(issues, `${path}.type`, 'must be question-answer or term-definition')
+  if (!isEntryType(value.type)) addIssue(issues, `${path}.type`, 'must be question-answer, term-definition, question-options, or question-code')
   if (!isNonEmptyString(value.question)) addIssue(issues, `${path}.question`, 'must be a non-empty string')
-  if (!isNonEmptyString(value.answer)) addIssue(issues, `${path}.answer`, 'must be a non-empty string')
+  if (value.type === 'question-options') {
+    if (!Array.isArray(value.options) || value.options.length < 2 || value.options.length > 6) {
+      addIssue(issues, `${path}.options`, 'must contain between 2 and 6 options')
+    } else {
+      value.options.forEach((option, index) => {
+        if (!isEntryOption(option)) addIssue(issues, `${path}.options[${index}]`, 'must include non-empty text and a boolean isCorrect value')
+      })
+      if (!value.options.some((option) => isEntryOption(option) && option.isCorrect)) {
+        addIssue(issues, `${path}.options`, 'must include at least one correct option')
+      }
+    }
+    if (value.explanation !== undefined && typeof value.explanation !== 'string') {
+      addIssue(issues, `${path}.explanation`, 'must be a string when provided')
+    }
+  } else if (!isNonEmptyString(value.answer)) {
+    addIssue(issues, `${path}.answer`, 'must be a non-empty string')
+  }
   if (!isTimestamp(value.createdAt)) addIssue(issues, `${path}.createdAt`, 'must be a timestamp')
   if (!isTimestamp(value.updatedAt)) addIssue(issues, `${path}.updatedAt`, 'must be a timestamp')
 
