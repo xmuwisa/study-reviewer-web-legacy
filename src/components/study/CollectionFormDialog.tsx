@@ -72,7 +72,10 @@ export function CollectionFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto sm:max-h-[calc(100dvh-3rem)]">
+      <DialogContent
+        className="!top-0 !left-0 !h-dvh !max-h-none !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none !border-0 !bg-background overflow-x-hidden overflow-y-auto p-4 lg:!top-1/2 lg:!left-1/2 lg:!h-auto lg:!max-h-[calc(100dvh-6rem)] lg:!max-w-lg lg:!-translate-x-1/2 lg:!-translate-y-1/2 lg:!rounded-xl lg:!bg-popover lg:p-6"
+        closeButtonClassName="top-4 right-4 rounded-full bg-muted/70 text-foreground hover:bg-muted focus-visible:ring-ring/50 sm:top-5 sm:right-5"
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
