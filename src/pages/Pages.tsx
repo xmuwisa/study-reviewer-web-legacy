@@ -5,7 +5,6 @@ import {
   BookOpenCheck,
   Check,
   CheckCircle2,
-  ChevronsDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -35,6 +34,7 @@ import { CollectionDeleteDialog } from '@/components/study/CollectionDeleteDialo
 import { CollectionFormDialog, type CollectionFormValues } from '@/components/study/CollectionFormDialog'
 import { EntryDeleteDialog } from '@/components/study/EntryDeleteDialog'
 import { EntryFormDialog, type EntryFormValues } from '@/components/study/EntryFormDialog'
+import { FlashcardScrollableContent } from '@/components/study/FlashcardScrollableContent'
 import { StudyDataActionsMenu } from '@/components/study/StudyDataActionsMenu'
 import { PdfExportControl } from '@/components/study/StudyPdfExport'
 import { ContextualDataTransfer, FullBackupControls } from '@/components/study/StudyDataTransfer'
@@ -532,8 +532,6 @@ function FlashcardMode({
   const navigationFrameRef = useRef<number | null>(null)
   const pendingNavigationIdRef = useRef<string | null>(null)
   const carouselStageRef = useRef<HTMLDivElement | null>(null)
-  const questionOptionsScrollRef = useRef<HTMLDivElement | null>(null)
-  const [showQuestionOptionsScrollHint, setShowQuestionOptionsScrollHint] = useState(false)
   currentEntryIdRef.current = currentEntryId
 
   function setInteractionPhase(nextPhase: FlashcardInteractionPhase) {
@@ -591,47 +589,6 @@ function FlashcardMode({
 
   const currentIndex = Math.max(0, orderedEntries.findIndex((entry) => entry.id === currentEntryId))
   const currentEntry = orderedEntries[currentIndex]
-  const currentEntryType = currentEntry?.type
-  const currentQuestionOptionsLength = currentEntry?.options?.length ?? 0
-
-  const updateQuestionOptionsScrollHint = useCallback(() => {
-    const element = questionOptionsScrollRef.current
-    if (!element) {
-      setShowQuestionOptionsScrollHint(false)
-      return
-    }
-
-    const scrollportBottom = element.getBoundingClientRect().bottom
-    const contentBottom = element.lastElementChild?.getBoundingClientRect().bottom ?? scrollportBottom
-    const hasMoreContent = contentBottom > scrollportBottom + 1
-    const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1
-    setShowQuestionOptionsScrollHint(hasMoreContent && !isAtBottom)
-  }, [])
-
-  useEffect(() => {
-    if (currentEntryType !== 'question-options' || !flipped) {
-      setShowQuestionOptionsScrollHint(false)
-      return
-    }
-
-    const element = questionOptionsScrollRef.current
-    if (!element) return
-
-    const update = () => updateQuestionOptionsScrollHint()
-    const frameId = window.requestAnimationFrame(update)
-    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
-    resizeObserver?.observe(element)
-    element.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
-
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      resizeObserver?.disconnect()
-      element.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-    }
-  }, [currentEntryType, currentQuestionOptionsLength, currentEntry?.explanation, flipped, questionOptionsResult, updateQuestionOptionsScrollHint])
-
   function moveTo(index: number) {
     const nextEntry = orderedEntries[index]
     if (!nextEntry) return
@@ -764,7 +721,7 @@ function FlashcardMode({
     setInteractionPhase('flipping')
   }
 
-  function handleCardKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+  function handleCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault()
       flipCard()
@@ -936,16 +893,10 @@ function FlashcardMode({
 
     return (
       <div
-        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-8"
+        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96"
         aria-hidden={!isVisible}
       >
-        <div
-          ref={questionOptionsScrollRef}
-          className={cn(
-            'flex min-h-0 w-full flex-1 flex-col gap-4 overflow-y-auto',
-            showQuestionOptionsScrollHint ? 'pb-14' : 'pb-4',
-          )}
-        >
+        <FlashcardScrollableContent ariaLabel="Scroll to the bottom of the options" className="gap-4 px-7 py-6 sm:px-16 sm:py-8">
           <span className="text-center text-base font-semibold uppercase tracking-[0.16em] text-primary">Options</span>
           <FieldSet
             className="w-full gap-3"
@@ -1006,23 +957,7 @@ function FlashcardMode({
               {currentEntry.explanation}
             </p>
           )}
-        </div>
-        {showQuestionOptionsScrollHint && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="flashcard-scroll-hint absolute right-4 bottom-6 bg-transparent text-foreground shadow-none hover:bg-transparent hover:text-foreground"
-            aria-label="Scroll to the bottom of the options"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation()
-              questionOptionsScrollRef.current?.scrollTo({ top: questionOptionsScrollRef.current.scrollHeight, behavior: 'smooth' })
-            }}
-          >
-            <ChevronsDown aria-hidden="true" data-icon="inline-start" className="size-7" />
-          </Button>
-        )}
+        </FlashcardScrollableContent>
       </div>
     )
   }
@@ -1033,10 +968,10 @@ function FlashcardMode({
     if (isBack && currentEntry.type === 'question-options') return renderQuestionOptionsFace(isVisible)
 
     return (
-      <button
-        type="button"
+      <div
+        role="button"
         className={cn(
-          'flashcard-face absolute inset-0 flex min-h-80 w-full flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-10 text-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-12',
+          'flashcard-face absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card text-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96',
           isBack ? 'flashcard-face-back' : 'flashcard-face-front',
         )}
         aria-hidden={!isVisible}
@@ -1045,9 +980,11 @@ function FlashcardMode({
         tabIndex={isVisible ? 0 : -1}
         onKeyDown={handleCardKeyDown}
       >
-        <span className="text-base font-semibold uppercase tracking-[0.16em] text-primary">{label}</span>
-        <span className="max-w-3xl whitespace-pre-wrap text-2xl font-semibold leading-tight text-foreground sm:text-4xl">{text}</span>
-      </button>
+        <FlashcardScrollableContent ariaLabel={`Scroll to the bottom of the ${label.toLowerCase()}`} className="items-center justify-center gap-5 px-6 py-10 sm:px-16 sm:py-12">
+          <span className="text-base font-semibold uppercase tracking-[0.16em] text-primary">{label}</span>
+          <span className={cn('max-w-3xl whitespace-pre-wrap text-2xl font-semibold leading-tight text-foreground sm:text-4xl', currentEntry.type === 'question-code' && 'font-mono')}>{text}</span>
+        </FlashcardScrollableContent>
+      </div>
     )
   }
 
@@ -1065,7 +1002,7 @@ function FlashcardMode({
     <div className="flex flex-col gap-6">
       <div
         ref={carouselStageRef}
-        className="flashcard-stage relative min-h-64 touch-pan-y sm:min-h-80"
+        className="flashcard-stage relative min-h-80 touch-pan-y sm:min-h-96"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
