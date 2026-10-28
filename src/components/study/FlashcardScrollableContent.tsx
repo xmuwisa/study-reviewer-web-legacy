@@ -99,7 +99,7 @@ export function FlashcardScrollableContent({ active = true, ariaLabel, children,
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
       >
-        <div ref={contentRef} className={cn('flex w-full flex-col', className)}>
+        <div ref={contentRef} className={cn('flex w-full shrink-0 flex-col', className)}>
           {children}
         </div>
       </div>
