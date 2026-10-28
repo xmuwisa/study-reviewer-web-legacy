@@ -261,23 +261,42 @@ export function EntryFormDialog({
                   </Field>
                 </>
               ) : (
-                <Field data-invalid={Boolean(answerError)}>
-                  <FieldLabel htmlFor="entry-answer">{rightLabel}</FieldLabel>
-                  <Textarea
-                    id="entry-answer"
-                    className={cn('border-0 bg-muted/45', isQuestionCode && 'font-mono')}
-                    aria-invalid={Boolean(answerError)}
-                    spellCheck={spellcheck}
-                    onCopy={preventClipboardAction}
-                    onCut={preventClipboardAction}
-                    onPaste={preventClipboardAction}
-                    value={values.answer}
-                    onChange={(event) => setValues((current) => ({ ...current, answer: event.target.value }))}
-                    placeholder={isTermDefinition ? 'Write the definition you want to remember' : isQuestionCode ? 'Write the code you want to remember' : 'Write the explanation you want to remember'}
-                    rows={5}
-                  />
-                  <FieldError>{answerError}</FieldError>
-                </Field>
+                <>
+                  <Field data-invalid={Boolean(answerError)}>
+                    <FieldLabel htmlFor="entry-answer">{rightLabel}</FieldLabel>
+                    <Textarea
+                      id="entry-answer"
+                      className={cn('border-0 bg-muted/45', isQuestionCode && 'font-mono')}
+                      aria-invalid={Boolean(answerError)}
+                      spellCheck={spellcheck}
+                      onCopy={preventClipboardAction}
+                      onCut={preventClipboardAction}
+                      onPaste={preventClipboardAction}
+                      value={values.answer}
+                      onChange={(event) => setValues((current) => ({ ...current, answer: event.target.value }))}
+                      placeholder={isTermDefinition ? 'Write the definition you want to remember' : isQuestionCode ? 'Write the code you want to remember' : 'Write the explanation you want to remember'}
+                      rows={5}
+                    />
+                    <FieldError>{answerError}</FieldError>
+                  </Field>
+                  {isQuestionCode && (
+                    <Field>
+                      <FieldLabel htmlFor="entry-explanation">Explanation <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
+                      <Textarea
+                        id="entry-explanation"
+                        className="border-0 bg-muted/45"
+                        spellCheck={spellcheck}
+                        onCopy={preventClipboardAction}
+                        onCut={preventClipboardAction}
+                        onPaste={preventClipboardAction}
+                        value={values.explanation}
+                        onChange={(event) => setValues((current) => ({ ...current, explanation: event.target.value }))}
+                        placeholder="Optional explanation"
+                        rows={3}
+                      />
+                    </Field>
+                  )}
+                </>
               )}
             </FieldGroup>
 

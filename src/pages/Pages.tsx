@@ -461,6 +461,16 @@ function EntryList({
                         </div>
                       ) : rightHidden ? (
                         <span className="text-muted-foreground">{rightLabel} hidden · Reveal</span>
+                      ) : isQuestionCode ? (
+                        <div className="flex w-full flex-col gap-3">
+                          <span className="whitespace-pre-wrap font-mono">{entry.answer}</span>
+                          {entry.explanation && (
+                            <div className="border-t border-border/70 pt-3 text-muted-foreground">
+                              <span className="font-semibold text-foreground">Explanation: </span>
+                              <span className="whitespace-pre-wrap">{entry.explanation}</span>
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <span className={cn('whitespace-pre-wrap', isQuestionCode && 'font-mono')}>{entry.answer}</span>
                       )}
