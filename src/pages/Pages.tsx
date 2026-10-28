@@ -499,6 +499,54 @@ function getFlashcardText(entry: Entry, side: FlashcardFrontSide) {
   return side === 'left' ? entry.question : entry.answer
 }
 
+function FlashcardTextFace({
+  label,
+  text,
+  isBack,
+  isVisible,
+  isQuestionCode,
+  onKeyDown,
+  preview = false,
+}: {
+  label: string
+  text: string
+  isBack: boolean
+  isVisible: boolean
+  isQuestionCode: boolean
+  onKeyDown?: (event: KeyboardEvent<HTMLDivElement>) => void
+  preview?: boolean
+}) {
+  return (
+    <div
+      {...(preview
+        ? {}
+        : {
+            role: 'button',
+            'aria-label': `${isBack ? 'Show front' : 'Show back'} of ${label.toLowerCase()}`,
+            'aria-keyshortcuts': 'Space ArrowLeft ArrowRight',
+            tabIndex: isVisible ? 0 : -1,
+            onKeyDown,
+          })}
+      aria-hidden={preview || !isVisible}
+      className={cn(
+        'flashcard-face absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card px-6 py-10 text-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-12',
+        isBack ? 'flashcard-face-back' : 'flashcard-face-front',
+      )}
+    >
+      <FlashcardScrollableContent
+        active={!preview && isVisible}
+        ariaLabel={`Scroll to the bottom of the ${label.toLowerCase()}`}
+        className="min-h-full items-center justify-center gap-5"
+      >
+        <span className="text-base font-semibold uppercase tracking-[0.16em] text-primary">{label}</span>
+        <span className={cn('max-w-3xl whitespace-pre-wrap text-2xl font-semibold leading-tight text-foreground sm:text-4xl', isQuestionCode && 'font-mono')}>
+          {text}
+        </span>
+      </FlashcardScrollableContent>
+    </div>
+  )
+}
+
 const FLASHCARD_SWIPE_DURATION = 800
 const FLASHCARD_DRAG_INTENT_THRESHOLD = 12
 const FLASHCARD_CAROUSEL_GAP = 24
@@ -893,10 +941,10 @@ function FlashcardMode({
 
     return (
       <div
-        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96"
+        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-8"
         aria-hidden={!isVisible}
       >
-        <FlashcardScrollableContent ariaLabel="Scroll to the bottom of the options" className="gap-4 px-7 py-6 sm:px-16 sm:py-8">
+        <FlashcardScrollableContent active={isVisible} ariaLabel="Scroll to the bottom of the options" className="gap-4">
           <span className="text-center text-base font-semibold uppercase tracking-[0.16em] text-primary">Options</span>
           <FieldSet
             className="w-full gap-3"
@@ -967,25 +1015,7 @@ function FlashcardMode({
 
     if (isBack && currentEntry.type === 'question-options') return renderQuestionOptionsFace(isVisible)
 
-    return (
-      <div
-        role="button"
-        className={cn(
-          'flashcard-face absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card text-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96',
-          isBack ? 'flashcard-face-back' : 'flashcard-face-front',
-        )}
-        aria-hidden={!isVisible}
-        aria-label={`${isBack ? 'Show front' : 'Show back'} of ${label.toLowerCase()}`}
-        aria-keyshortcuts="Space ArrowLeft ArrowRight"
-        tabIndex={isVisible ? 0 : -1}
-        onKeyDown={handleCardKeyDown}
-      >
-        <FlashcardScrollableContent ariaLabel={`Scroll to the bottom of the ${label.toLowerCase()}`} className="items-center justify-center gap-5 px-6 py-10 sm:px-16 sm:py-12">
-          <span className="text-base font-semibold uppercase tracking-[0.16em] text-primary">{label}</span>
-          <span className={cn('max-w-3xl whitespace-pre-wrap text-2xl font-semibold leading-tight text-foreground sm:text-4xl', currentEntry.type === 'question-code' && 'font-mono')}>{text}</span>
-        </FlashcardScrollableContent>
-      </div>
-    )
+    return <FlashcardTextFace label={label} text={text} isBack={isBack} isVisible={isVisible} isQuestionCode={currentEntry.type === 'question-code'} onKeyDown={handleCardKeyDown} />
   }
 
   function handleCardClick(event: MouseEvent<HTMLDivElement>) {
@@ -1026,13 +1056,19 @@ function FlashcardMode({
             <div
               key={`preview-${previewEntry.id}`}
               aria-hidden="true"
-              className="flashcard-card-shell flashcard-depth flashcard-drag-surface pointer-events-none absolute inset-x-0 top-0 flex select-none flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-10 text-center sm:px-16 sm:py-12"
+              className="flashcard-card-shell flashcard-depth flashcard-drag-surface pointer-events-none absolute inset-x-0 top-0 select-none rounded-2xl bg-card"
               data-interaction-phase={interactionPhase}
               style={{ transform: `translate3d(${previewX}px, 0, 0)` }}
               onTransitionEnd={handleCardTransitionEnd}
             >
-              <span className="text-base font-semibold uppercase tracking-[0.16em] text-primary">{previewLabel}</span>
-              <span className="max-w-3xl whitespace-pre-wrap text-2xl font-semibold leading-tight text-foreground sm:text-4xl">{previewText}</span>
+              <FlashcardTextFace
+                label={previewLabel}
+                text={previewText}
+                isBack={false}
+                isVisible
+                isQuestionCode={previewEntry.type === 'question-code'}
+                preview
+              />
             </div>
           )}
         </div>
