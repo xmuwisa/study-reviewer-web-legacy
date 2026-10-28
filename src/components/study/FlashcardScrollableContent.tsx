@@ -16,6 +16,7 @@ export function FlashcardScrollableContent({ active = true, ariaLabel, children,
   const contentRef = useRef<HTMLDivElement | null>(null)
   const pointerStartScrollTopRef = useRef<number | null>(null)
   const didScrollRef = useRef(false)
+  const wasAtBottomRef = useRef(false)
   const [showScrollHint, setShowScrollHint] = useState(false)
 
   const updateScrollHint = useCallback(() => {
@@ -30,6 +31,7 @@ export function FlashcardScrollableContent({ active = true, ariaLabel, children,
     const contentBottom = content.lastElementChild?.getBoundingClientRect().bottom ?? scrollportBottom
     const hasMoreContent = contentBottom > scrollportBottom + 1
     const isAtBottom = scrollport.scrollTop + scrollport.clientHeight >= scrollport.scrollHeight - 1
+    if (isAtBottom) wasAtBottomRef.current = true
     setShowScrollHint(hasMoreContent && !isAtBottom)
   }, [active])
 
@@ -54,6 +56,15 @@ export function FlashcardScrollableContent({ active = true, ariaLabel, children,
       window.removeEventListener('resize', updateScrollHint)
     }
   }, [active, updateScrollHint])
+
+  useLayoutEffect(() => {
+    const scrollport = scrollportRef.current
+    if (!active || showScrollHint || !wasAtBottomRef.current || !scrollport) return
+
+    scrollport.scrollTop = scrollport.scrollHeight
+    wasAtBottomRef.current = false
+    updateScrollHint()
+  }, [active, showScrollHint, updateScrollHint])
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     const scrollport = scrollportRef.current
@@ -82,13 +93,13 @@ export function FlashcardScrollableContent({ active = true, ariaLabel, children,
     <>
       <div
         ref={scrollportRef}
-        className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto"
+        className={cn('flex min-h-0 w-full flex-1 flex-col overflow-y-auto', showScrollHint ? 'pb-14' : 'pb-4')}
         onClick={handleClick}
         onPointerCancel={handlePointerUp}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
       >
-        <div ref={contentRef} className={cn('flex w-full flex-col', className, showScrollHint ? 'pb-14' : 'pb-4')}>
+        <div ref={contentRef} className={cn('flex w-full flex-col', className)}>
           {children}
         </div>
       </div>
