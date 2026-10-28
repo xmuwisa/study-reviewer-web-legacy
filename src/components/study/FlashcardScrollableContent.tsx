@@ -1,5 +1,5 @@
 import { ChevronsDown } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -28,11 +28,11 @@ export function FlashcardScrollableContent({ ariaLabel, children, className }: F
     setShowScrollHint(maxScrollTop > 1 && scrollport.scrollTop < maxScrollTop - 1)
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const scrollport = scrollportRef.current
     if (!scrollport) return
 
-    const frameId = window.requestAnimationFrame(updateScrollHint)
+    updateScrollHint()
     const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateScrollHint)
     resizeObserver?.observe(scrollport)
     if (contentRef.current) resizeObserver?.observe(contentRef.current)
@@ -40,7 +40,6 @@ export function FlashcardScrollableContent({ ariaLabel, children, className }: F
     window.addEventListener('resize', updateScrollHint)
 
     return () => {
-      window.cancelAnimationFrame(frameId)
       resizeObserver?.disconnect()
       scrollport.removeEventListener('scroll', updateScrollHint)
       window.removeEventListener('resize', updateScrollHint)
