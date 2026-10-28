@@ -936,7 +936,7 @@ function FlashcardMode({
 
     return (
       <div
-        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-64 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-16 sm:py-8"
+        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-8"
         aria-hidden={!isVisible}
       >
         <div
@@ -1036,7 +1036,7 @@ function FlashcardMode({
       <button
         type="button"
         className={cn(
-          'flashcard-face absolute inset-0 flex min-h-64 w-full flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-10 text-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-16 sm:py-12',
+          'flashcard-face absolute inset-0 flex min-h-80 w-full flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-10 text-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-12',
           isBack ? 'flashcard-face-back' : 'flashcard-face-front',
         )}
         aria-hidden={!isVisible}

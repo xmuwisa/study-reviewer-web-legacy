@@ -159,7 +159,7 @@ a {
 }
 
 .flashcard-stage {
-  min-height: calc(16rem + 1.5rem);
+  min-height: calc(20rem + 1.5rem);
   perspective: 1400px;
   transform-style: preserve-3d;
 }
@@ -176,7 +176,7 @@ a {
 
 @media (min-width: 640px) {
   .flashcard-stage {
-    min-height: calc(20rem + 1.5rem);
+    min-height: calc(24rem + 1.5rem);
   }
 }
 
