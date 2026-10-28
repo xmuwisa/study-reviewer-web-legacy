@@ -23,6 +23,7 @@ export function FlashcardScrollableContent({ active = true, ariaLabel, children,
     const scrollport = scrollportRef.current
     const content = contentRef.current
     if (!active || !scrollport || !content) {
+      wasAtBottomRef.current = false
       setShowScrollHint(false)
       return
     }
@@ -31,7 +32,7 @@ export function FlashcardScrollableContent({ active = true, ariaLabel, children,
     const contentBottom = content.lastElementChild?.getBoundingClientRect().bottom ?? scrollportBottom
     const hasMoreContent = contentBottom > scrollportBottom + 1
     const isAtBottom = scrollport.scrollTop + scrollport.clientHeight >= scrollport.scrollHeight - 1
-    if (isAtBottom) wasAtBottomRef.current = true
+    wasAtBottomRef.current = isAtBottom
     setShowScrollHint(hasMoreContent && !isAtBottom)
   }, [active])
 
@@ -39,6 +40,7 @@ export function FlashcardScrollableContent({ active = true, ariaLabel, children,
     const scrollport = scrollportRef.current
     const content = contentRef.current
     if (!active || !scrollport || !content) {
+      wasAtBottomRef.current = false
       setShowScrollHint(false)
       return
     }
