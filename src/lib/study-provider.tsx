@@ -7,9 +7,11 @@ import {
   createEntry,
   createTopic,
   deleteCategory,
+  deleteCategories,
   deleteEntry,
   deleteEntries,
   deleteTopic,
+  deleteTopics,
   markCategoryAccessed,
   markTopicAccessed,
   updateCategory,
@@ -99,6 +101,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     [commit, data],
   )
   const deleteCategoryAction = useCallback((categoryId: RecordId) => commit(deleteCategory(data, categoryId)), [commit, data])
+  const deleteCategoriesAction = useCallback((categoryIds: RecordId[]) => commit(deleteCategories(data, categoryIds)), [commit, data])
   const createTopicAction = useCallback(
     (categoryId: RecordId, input: TopicInput) => commit(createTopic(data, categoryId, input)),
     [commit, data],
@@ -108,6 +111,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
     [commit, data],
   )
   const deleteTopicAction = useCallback((topicId: RecordId) => commit(deleteTopic(data, topicId)), [commit, data])
+  const deleteTopicsAction = useCallback((topicIds: RecordId[]) => commit(deleteTopics(data, topicIds)), [commit, data])
   const createEntryAction = useCallback(
     (topicId: RecordId, input: EntryInput) => commit(createEntry(data, topicId, input)),
     [commit, data],
@@ -172,9 +176,11 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       createCategory: createCategoryAction,
       updateCategory: updateCategoryAction,
       deleteCategory: deleteCategoryAction,
+      deleteCategories: deleteCategoriesAction,
       createTopic: createTopicAction,
       updateTopic: updateTopicAction,
       deleteTopic: deleteTopicAction,
+      deleteTopics: deleteTopicsAction,
       createEntry: createEntryAction,
       updateEntry: updateEntryAction,
       deleteEntry: deleteEntryAction,
@@ -201,9 +207,11 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       createEntryAction,
       data,
       deleteCategoryAction,
+      deleteCategoriesAction,
       deleteEntryAction,
       deleteEntriesAction,
       deleteTopicAction,
+      deleteTopicsAction,
       openCategory,
       openTopic,
       storageNotice,

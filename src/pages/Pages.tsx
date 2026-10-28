@@ -259,6 +259,85 @@ function CollectionToolbar({
   )
 }
 
+function useVisibleSelection(items: Array<{ id: string }>) {
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+
+  useEffect(() => {
+    const visibleIds = new Set(items.map((item) => item.id))
+    setSelectedIds((current) => {
+      const next = new Set([...current].filter((itemId) => visibleIds.has(itemId)))
+      return next.size === current.size ? current : next
+    })
+  }, [items])
+
+  function exitSelectionMode() {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+  }
+
+  function toggleSelection(itemId: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(itemId)) next.delete(itemId)
+      else next.add(itemId)
+      return next
+    })
+  }
+
+  const selectedVisibleCount = items.reduce((count, item) => count + (selectedIds.has(item.id) ? 1 : 0), 0)
+  const allVisibleSelected = items.length > 0 && selectedVisibleCount === items.length
+
+  function toggleSelectAll() {
+    setSelectedIds(allVisibleSelected ? new Set() : new Set(items.map((item) => item.id)))
+  }
+
+  return {
+    selectionMode,
+    setSelectionMode,
+    selectedIds,
+    selectedVisibleCount,
+    allVisibleSelected,
+    exitSelectionMode,
+    toggleSelection,
+    toggleSelectAll,
+  }
+}
+
+function CollectionSelectionToolbar({
+  itemLabel,
+  itemLabelPlural,
+  selectedCount,
+  allVisibleSelected,
+  hasVisibleItems,
+  onToggleAll,
+  onDelete,
+}: {
+  itemLabel: string
+  itemLabelPlural: string
+  selectedCount: number
+  allVisibleSelected: boolean
+  hasVisibleItems: boolean
+  onToggleAll: () => void
+  onDelete: () => void
+}) {
+  return (
+    <div role="toolbar" aria-label={`Bulk ${itemLabel} actions`} className="flex flex-col gap-2 rounded-2xl bg-card/60 p-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center gap-2">
+        <Toggle type="button" size="sm" pressed={allVisibleSelected} disabled={!hasVisibleItems} onPressedChange={onToggleAll}>
+          {allVisibleSelected ? 'Unselect All' : 'Select All'}
+        </Toggle>
+        <span aria-live="polite" className="px-2 text-sm text-muted-foreground">
+          <CountLabel count={selectedCount} singular={`selected ${itemLabel}`} plural={`selected ${itemLabelPlural}`} />
+        </span>
+      </div>
+      <Button type="button" size="sm" variant="destructive" disabled={selectedCount === 0} onClick={onDelete}>
+        <Trash2 aria-hidden="true" data-icon="inline-start" /> Delete
+      </Button>
+    </div>
+  )
+}
+
 function CountLabel({ count, singular, plural }: { count: number; singular: string; plural: string }) {
   return <span>{count} {count === 1 ? singular : plural}</span>
 }
@@ -1049,16 +1128,22 @@ function CategoryCard({
   category,
   topicCount,
   entryCount,
+  selectionMode,
+  selected,
   onOpen,
   onEdit,
   onDelete,
+  onToggleSelection,
 }: {
   category: Category
   topicCount: number
   entryCount: number
+  selectionMode: boolean
+  selected: boolean
   onOpen: () => void
   onEdit: () => void
   onDelete: () => void
+  onToggleSelection: () => void
 }) {
   function handleCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.target !== event.currentTarget) return
@@ -1075,14 +1160,20 @@ function CategoryCard({
           <div className="min-w-0">
             <CardTitle className="truncate text-xl transition-colors group-hover:text-primary">{category.name}</CardTitle>
           </div>
-          <div className="flex shrink-0 items-center gap-0">
-            <Button aria-label={`Edit ${category.name}`} size="icon-sm" variant="ghost" onClick={(event) => { event.stopPropagation(); onEdit() }}>
-              <Pencil aria-hidden="true" />
-            </Button>
-            <Button aria-label={`Delete ${category.name}`} size="icon-sm" variant="ghost" onClick={(event) => { event.stopPropagation(); onDelete() }}>
-              <Trash2 aria-hidden="true" />
-            </Button>
-          </div>
+          {selectionMode ? (
+            <div className="flex size-10 items-center justify-center" onClick={(event) => event.stopPropagation()}>
+              <Checkbox aria-label={`Select category: ${category.name}`} checked={selected} onCheckedChange={onToggleSelection} />
+            </div>
+          ) : (
+            <div className="flex shrink-0 items-center gap-0">
+              <Button aria-label={`Edit ${category.name}`} size="icon-sm" variant="ghost" onClick={(event) => { event.stopPropagation(); onEdit() }}>
+                <Pencil aria-hidden="true" />
+              </Button>
+              <Button aria-label={`Delete ${category.name}`} size="icon-sm" variant="ghost" onClick={(event) => { event.stopPropagation(); onDelete() }}>
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </div>
+          )}
         </div>
         <CardDescription>{category.description || 'A focused place for related study topics.'}</CardDescription>
       </CardHeader>
@@ -1099,15 +1190,21 @@ function CategoryCard({
 function TopicCard({
   topic,
   entryCount,
+  selectionMode,
+  selected,
   onOpen,
   onEdit,
   onDelete,
+  onToggleSelection,
 }: {
   topic: Topic
   entryCount: number
+  selectionMode: boolean
+  selected: boolean
   onOpen: () => void
   onEdit: () => void
   onDelete: () => void
+  onToggleSelection: () => void
 }) {
   function handleCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.target !== event.currentTarget) return
@@ -1124,14 +1221,20 @@ function TopicCard({
           <div className="min-w-0">
             <CardTitle className="truncate text-xl transition-colors group-hover:text-primary">{topic.name}</CardTitle>
           </div>
-          <div className="flex shrink-0 items-center gap-0">
-            <Button aria-label={`Edit ${topic.name}`} size="icon-sm" variant="ghost" onClick={(event) => { event.stopPropagation(); onEdit() }}>
-              <Pencil aria-hidden="true" />
-            </Button>
-            <Button aria-label={`Delete ${topic.name}`} size="icon-sm" variant="ghost" onClick={(event) => { event.stopPropagation(); onDelete() }}>
-              <Trash2 aria-hidden="true" />
-            </Button>
-          </div>
+          {selectionMode ? (
+            <div className="flex size-10 items-center justify-center" onClick={(event) => event.stopPropagation()}>
+              <Checkbox aria-label={`Select topic: ${topic.name}`} checked={selected} onCheckedChange={onToggleSelection} />
+            </div>
+          ) : (
+            <div className="flex shrink-0 items-center gap-0">
+              <Button aria-label={`Edit ${topic.name}`} size="icon-sm" variant="ghost" onClick={(event) => { event.stopPropagation(); onEdit() }}>
+                <Pencil aria-hidden="true" />
+              </Button>
+              <Button aria-label={`Delete ${topic.name}`} size="icon-sm" variant="ghost" onClick={(event) => { event.stopPropagation(); onDelete() }}>
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </div>
+          )}
         </div>
         <CardDescription>{topic.description || 'A focused path for questions and explanations.'}</CardDescription>
       </CardHeader>
@@ -1266,14 +1369,16 @@ export function DashboardPage() {
 
 export function CategoriesPage() {
   const navigate = useNavigate()
-  const { data, createCategory, updateCategory, deleteCategory, openCategory } = useStudyData()
+  const { data, createCategory, updateCategory, deleteCategory, deleteCategories, openCategory } = useStudyData()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<CategorySort>('alphabetical')
   const [formOpen, setFormOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const categories = useMemo(() => filterAndSortCategories(data, search, sort), [data, search, sort])
+  const categorySelection = useVisibleSelection(categories)
 
   useEffect(() => {
     if (searchParams.get('action') !== 'create') return
@@ -1283,6 +1388,7 @@ export function CategoriesPage() {
   }, [searchParams, setSearchParams])
 
   function openCategoryPage(categoryId: string) {
+    categorySelection.exitSelectionMode()
     openCategory(categoryId)
     navigate(`/categories/${categoryId}`)
   }
@@ -1296,6 +1402,19 @@ export function CategoriesPage() {
     return editingCategory ? updateCategory(editingCategory.id, values) : createCategory(values)
   }
 
+  function confirmBulkDelete() {
+    const visibleCategoryIds = new Set(categories.map((category) => category.id))
+    const selectedVisibleCategoryIds = [...categorySelection.selectedIds].filter((categoryId) => visibleCategoryIds.has(categoryId))
+    if (selectedVisibleCategoryIds.length === 0) return true
+
+    const deleted = deleteCategories(selectedVisibleCategoryIds)
+    if (deleted) {
+      categorySelection.exitSelectionMode()
+      setBulkDeleteOpen(false)
+    }
+    return deleted
+  }
+
   return (
     <div>
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -1304,7 +1423,37 @@ export function CategoriesPage() {
       </div>
 
       <div className="mt-9 flex flex-col gap-5">
-        <CollectionToolbar search={search} onSearchChange={setSearch} sort={sort} onSortChange={(value) => setSort(value as CategorySort)} sortOptions={[{ value: 'alphabetical', label: 'Name: A–Z' }, { value: 'reverse-alphabetical', label: 'Name: Z–A' }, { value: 'recent', label: 'Most recent' }]} placeholder="Search" label="Category search" />
+        <CollectionToolbar
+          search={search}
+          onSearchChange={setSearch}
+          sort={sort}
+          onSortChange={(value) => setSort(value as CategorySort)}
+          sortOptions={[{ value: 'alphabetical', label: 'Name: A–Z' }, { value: 'reverse-alphabetical', label: 'Name: Z–A' }, { value: 'recent', label: 'Most recent' }]}
+          placeholder="Search"
+          label="Category search"
+          rightControls={(
+            <Toggle
+              type="button"
+              size="sm"
+              pressed={categorySelection.selectionMode}
+              aria-label={categorySelection.selectionMode ? 'Exit category selection mode' : 'Select categories'}
+              onPressedChange={(pressed) => { if (pressed) categorySelection.setSelectionMode(true); else { categorySelection.exitSelectionMode(); setBulkDeleteOpen(false) } }}
+            >
+              <CheckCircle2 aria-hidden="true" data-icon="inline-start" /> Select
+            </Toggle>
+          )}
+        />
+        {categorySelection.selectionMode && (
+          <CollectionSelectionToolbar
+            itemLabel="category"
+            itemLabelPlural="categories"
+            selectedCount={categorySelection.selectedVisibleCount}
+            allVisibleSelected={categorySelection.allVisibleSelected}
+            hasVisibleItems={categories.length > 0}
+            onToggleAll={categorySelection.toggleSelectAll}
+            onDelete={() => setBulkDeleteOpen(true)}
+          />
+        )}
         {categories.length === 0 ? (
           <EmptyCollection kind="category" hasSearch={Boolean(search.trim())} onCreate={showCreateForm} onClearSearch={() => setSearch('')} />
         ) : (
@@ -1318,9 +1467,12 @@ export function CategoriesPage() {
                   category={category}
                   topicCount={topicCount}
                   entryCount={entryCount}
+                  selectionMode={categorySelection.selectionMode}
+                  selected={categorySelection.selectedIds.has(category.id)}
                   onOpen={() => openCategoryPage(category.id)}
                   onEdit={() => { setEditingCategory(category); setFormOpen(true) }}
                   onDelete={() => setDeletingCategory(category)}
+                  onToggleSelection={() => categorySelection.toggleSelection(category.id)}
                 />
               )
             })}
@@ -1346,6 +1498,15 @@ export function CategoriesPage() {
           onConfirm={() => deleteCategory(deletingCategory.id)}
         />
       )}
+      {bulkDeleteOpen && (
+        <CollectionDeleteDialog
+          kind="category"
+          count={categorySelection.selectedVisibleCount}
+          open
+          onOpenChange={(open) => { if (!open) setBulkDeleteOpen(false) }}
+          onConfirm={confirmBulkDelete}
+        />
+      )}
 
       <div className="mt-5"><FoundationNote /></div>
     </div>
@@ -1355,7 +1516,7 @@ export function CategoriesPage() {
 export function CategoryDetailPage() {
   const { categoryId = '' } = useParams()
   const navigate = useNavigate()
-  const { data, createTopic, updateTopic, deleteTopic, openCategory, openTopic, importCategory } = useStudyData()
+  const { data, createTopic, updateTopic, deleteTopic, deleteTopics, openCategory, openTopic, importCategory } = useStudyData()
   const [searchParams, setSearchParams] = useSearchParams()
   const category = findCategory(data, categoryId)
   const openedCategoryId = useRef<string | null>(null)
@@ -1364,7 +1525,9 @@ export function CategoryDetailPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null)
   const [deletingTopic, setDeletingTopic] = useState<Topic | null>(null)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const topics = useMemo(() => filterAndSortTopics(data, categoryId, search, sort), [categoryId, data, search, sort])
+  const topicSelection = useVisibleSelection(topics)
 
   useEffect(() => {
     if (searchParams.get('action') !== 'create') return
@@ -1383,6 +1546,7 @@ export function CategoryDetailPage() {
   if (!category) return <NotFoundPage />
 
   function openTopicPage(topicId: string) {
+    topicSelection.exitSelectionMode()
     openTopic(topicId)
     navigate(`/categories/${categoryId}/topics/${topicId}`)
   }
@@ -1394,6 +1558,19 @@ export function CategoryDetailPage() {
 
   function submitTopic(values: CollectionFormValues) {
     return editingTopic ? updateTopic(editingTopic.id, values) : createTopic(categoryId, values)
+  }
+
+  function confirmBulkDelete() {
+    const visibleTopicIds = new Set(topics.map((topic) => topic.id))
+    const selectedVisibleTopicIds = [...topicSelection.selectedIds].filter((topicId) => visibleTopicIds.has(topicId))
+    if (selectedVisibleTopicIds.length === 0) return true
+
+    const deleted = deleteTopics(selectedVisibleTopicIds)
+    if (deleted) {
+      topicSelection.exitSelectionMode()
+      setBulkDeleteOpen(false)
+    }
+    return deleted
   }
 
   return (
@@ -1430,7 +1607,37 @@ export function CategoryDetailPage() {
       </div>
 
       <div className="mt-7 flex flex-col gap-5">
-        <CollectionToolbar search={search} onSearchChange={setSearch} sort={sort} onSortChange={(value) => setSort(value as TopicSort)} sortOptions={[{ value: 'alphabetical', label: 'Name: A–Z' }, { value: 'reverse-alphabetical', label: 'Name: Z–A' }, { value: 'recent', label: 'Most recent' }]} placeholder="Search" label="Topic search" />
+        <CollectionToolbar
+          search={search}
+          onSearchChange={setSearch}
+          sort={sort}
+          onSortChange={(value) => setSort(value as TopicSort)}
+          sortOptions={[{ value: 'alphabetical', label: 'Name: A–Z' }, { value: 'reverse-alphabetical', label: 'Name: Z–A' }, { value: 'recent', label: 'Most recent' }]}
+          placeholder="Search"
+          label="Topic search"
+          rightControls={(
+            <Toggle
+              type="button"
+              size="sm"
+              pressed={topicSelection.selectionMode}
+              aria-label={topicSelection.selectionMode ? 'Exit topic selection mode' : 'Select topics'}
+              onPressedChange={(pressed) => { if (pressed) topicSelection.setSelectionMode(true); else { topicSelection.exitSelectionMode(); setBulkDeleteOpen(false) } }}
+            >
+              <CheckCircle2 aria-hidden="true" data-icon="inline-start" /> Select
+            </Toggle>
+          )}
+        />
+        {topicSelection.selectionMode && (
+          <CollectionSelectionToolbar
+            itemLabel="topic"
+            itemLabelPlural="topics"
+            selectedCount={topicSelection.selectedVisibleCount}
+            allVisibleSelected={topicSelection.allVisibleSelected}
+            hasVisibleItems={topics.length > 0}
+            onToggleAll={topicSelection.toggleSelectAll}
+            onDelete={() => setBulkDeleteOpen(true)}
+          />
+        )}
         {topics.length === 0 ? (
           <EmptyCollection kind="topic" hasSearch={Boolean(search.trim())} onCreate={showCreateForm} onClearSearch={() => setSearch('')} />
         ) : (
@@ -1440,9 +1647,12 @@ export function CategoryDetailPage() {
                 key={topic.id}
                 topic={topic}
                 entryCount={getEntriesForTopic(data, topic.id).length}
+                selectionMode={topicSelection.selectionMode}
+                selected={topicSelection.selectedIds.has(topic.id)}
                 onOpen={() => openTopicPage(topic.id)}
                 onEdit={() => { setEditingTopic(topic); setFormOpen(true) }}
                 onDelete={() => setDeletingTopic(topic)}
+                onToggleSelection={() => topicSelection.toggleSelection(topic.id)}
               />
             ))}
           </div>
@@ -1468,6 +1678,15 @@ export function CategoryDetailPage() {
           open
           onOpenChange={(open) => { if (!open) setDeletingTopic(null) }}
           onConfirm={() => deleteTopic(deletingTopic.id)}
+        />
+      )}
+      {bulkDeleteOpen && (
+        <CollectionDeleteDialog
+          kind="topic"
+          count={topicSelection.selectedVisibleCount}
+          open
+          onOpenChange={(open) => { if (!open) setBulkDeleteOpen(false) }}
+          onConfirm={confirmBulkDelete}
         />
       )}
     </div>
