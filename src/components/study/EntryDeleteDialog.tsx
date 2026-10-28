@@ -10,29 +10,37 @@ import {
 } from '@/components/ui/alert-dialog'
 
 type EntryDeleteDialogProps = {
-  question: string
+  question?: string
+  count?: number
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: () => boolean
 }
 
-export function EntryDeleteDialog({ question, open, onOpenChange, onConfirm }: EntryDeleteDialogProps) {
+export function EntryDeleteDialog({ question, count, open, onOpenChange, onConfirm }: EntryDeleteDialogProps) {
   function handleConfirm() {
     if (onConfirm()) onOpenChange(false)
   }
+
+  const isBulk = typeof count === 'number'
+  const entryLabel = count === 1 ? 'entry' : 'entries'
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete entry?</AlertDialogTitle>
+          <AlertDialogTitle>{isBulk ? `Delete ${count} ${entryLabel}?` : 'Delete entry?'}</AlertDialogTitle>
           <AlertDialogDescription>
-            This will permanently remove <strong className="font-semibold text-foreground">{question}</strong> from this topic. This action cannot be undone.
+            {isBulk ? (
+              <>This will permanently remove <strong className="font-semibold text-foreground">{count} selected {entryLabel}</strong> from this topic. This action cannot be undone.</>
+            ) : (
+              <>This will permanently remove <strong className="font-semibold text-foreground">{question}</strong> from this topic. This action cannot be undone.</>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant="destructive" onClick={handleConfirm}>Delete entry</AlertDialogAction>
+          <AlertDialogAction variant="destructive" onClick={handleConfirm}>{isBulk ? `Delete ${count} ${entryLabel}` : 'Delete entry'}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

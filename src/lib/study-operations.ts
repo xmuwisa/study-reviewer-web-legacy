@@ -82,22 +82,27 @@ export function updateCategory(data: StudyData, categoryId: RecordId, input: Cat
   }
 }
 
-export function deleteCategory(data: StudyData, categoryId: RecordId): StudyData {
-  if (!data.categories.some((category) => category.id === categoryId)) return data
+export function deleteCategories(data: StudyData, categoryIds: RecordId[]): StudyData {
+  const categoryIdsToDelete = new Set(categoryIds.filter((categoryId) => data.categories.some((category) => category.id === categoryId)))
+  if (categoryIdsToDelete.size === 0) return data
 
-  const topicIds = new Set(data.topics.filter((topic) => topic.categoryId === categoryId).map((topic) => topic.id))
-  const removedIds = new Set([categoryId, ...topicIds])
+  const topicIds = new Set(data.topics.filter((topic) => categoryIdsToDelete.has(topic.categoryId)).map((topic) => topic.id))
+  const removedIds = new Set([...categoryIdsToDelete, ...topicIds])
 
   return {
     ...data,
-    categories: data.categories.filter((category) => category.id !== categoryId),
-    topics: data.topics.filter((topic) => topic.categoryId !== categoryId),
+    categories: data.categories.filter((category) => !categoryIdsToDelete.has(category.id)),
+    topics: data.topics.filter((topic) => !categoryIdsToDelete.has(topic.categoryId)),
     entries: data.entries.filter((entry) => !topicIds.has(entry.topicId)),
     activity: {
       ...data.activity,
       recentlyAccessed: removeRecentActivity(data, removedIds),
     },
   }
+}
+
+export function deleteCategory(data: StudyData, categoryId: RecordId): StudyData {
+  return deleteCategories(data, [categoryId])
 }
 
 export function createTopic(data: StudyData, categoryId: RecordId, input: TopicInput, now = Date.now()): StudyData {
@@ -119,18 +124,23 @@ export function updateTopic(data: StudyData, topicId: RecordId, input: TopicInpu
   }
 }
 
-export function deleteTopic(data: StudyData, topicId: RecordId): StudyData {
-  if (!data.topics.some((topic) => topic.id === topicId)) return data
+export function deleteTopics(data: StudyData, topicIds: RecordId[]): StudyData {
+  const topicIdsToDelete = new Set(topicIds.filter((topicId) => data.topics.some((topic) => topic.id === topicId)))
+  if (topicIdsToDelete.size === 0) return data
 
   return {
     ...data,
-    topics: data.topics.filter((topic) => topic.id !== topicId),
-    entries: data.entries.filter((entry) => entry.topicId !== topicId),
+    topics: data.topics.filter((topic) => !topicIdsToDelete.has(topic.id)),
+    entries: data.entries.filter((entry) => !topicIdsToDelete.has(entry.topicId)),
     activity: {
       ...data.activity,
-      recentlyAccessed: removeRecentActivity(data, new Set([topicId])),
+      recentlyAccessed: removeRecentActivity(data, topicIdsToDelete),
     },
   }
+}
+
+export function deleteTopic(data: StudyData, topicId: RecordId): StudyData {
+  return deleteTopics(data, [topicId])
 }
 
 export function createEntry(data: StudyData, topicId: RecordId, input: EntryInput, now = Date.now()): StudyData {
@@ -181,10 +191,16 @@ function hasValidQuestionOptions(options: EntryOption[] | undefined): options is
   )
 }
 
-export function deleteEntry(data: StudyData, entryId: RecordId): StudyData {
-  if (!data.entries.some((entry) => entry.id === entryId)) return data
+export function deleteEntries(data: StudyData, entryIds: RecordId[]): StudyData {
+  const ids = new Set(entryIds)
+  if (ids.size === 0) return data
 
-  return { ...data, entries: data.entries.filter((entry) => entry.id !== entryId) }
+  const entries = data.entries.filter((entry) => !ids.has(entry.id))
+  return entries.length === data.entries.length ? data : { ...data, entries }
+}
+
+export function deleteEntry(data: StudyData, entryId: RecordId): StudyData {
+  return deleteEntries(data, [entryId])
 }
 
 export function markCategoryAccessed(data: StudyData, categoryId: RecordId, accessedAt = Date.now()): StudyData {
