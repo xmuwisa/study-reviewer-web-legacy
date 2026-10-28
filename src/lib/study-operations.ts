@@ -156,7 +156,7 @@ export function updateEntry(data: StudyData, entryId: RecordId, input: EntryInpu
   const type = input.type ?? data.entries.find((entry) => entry.id === entryId)?.type
   const answer = type === 'question-options' ? '' : type === 'question-code' ? input.answer : input.answer.trim()
   const options = type === 'question-options' ? normalizeQuestionOptions(input.options) : undefined
-  const explanation = type === 'question-options' ? input.explanation?.trim() ?? '' : undefined
+  const explanation = type === 'question-options' || type === 'question-code' ? input.explanation?.trim() ?? '' : undefined
   if (!question || !data.entries.some((entry) => entry.id === entryId)) return data
   if (type === 'question-options' ? !hasValidQuestionOptions(options) : !answer) return data
 
@@ -169,7 +169,7 @@ export function updateEntry(data: StudyData, entryId: RecordId, input: EntryInpu
             type: type ?? entry.type,
             question,
             answer,
-            ...(type === 'question-options' ? { options, explanation } : { options: undefined, explanation: undefined }),
+            ...(type === 'question-options' ? { options, explanation } : { options: undefined, explanation: type === 'question-code' ? explanation : undefined }),
             updatedAt: now,
           }
         : entry,

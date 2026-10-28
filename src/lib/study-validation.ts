@@ -133,6 +133,9 @@ function validateEntry(value: unknown, path: string, issues: ValidationIssue[]):
   } else if (!isNonEmptyString(value.answer)) {
     addIssue(issues, `${path}.answer`, 'must be a non-empty string')
   }
+  if (value.type === 'question-code' && value.explanation !== undefined && typeof value.explanation !== 'string') {
+    addIssue(issues, `${path}.explanation`, 'must be a string when provided')
+  }
   if (!isTimestamp(value.createdAt)) addIssue(issues, `${path}.createdAt`, 'must be a timestamp')
   if (!isTimestamp(value.updatedAt)) addIssue(issues, `${path}.updatedAt`, 'must be a timestamp')
 

@@ -243,7 +243,9 @@ export function createEntryRecord(
           options: input.options?.map((option) => ({ text: option.text.trim(), isCorrect: option.isCorrect })),
           explanation: input.explanation?.trim() ?? '',
         }
-      : {}),
+      : isQuestionCode
+        ? { explanation: input.explanation?.trim() ?? '' }
+        : {}),
     createdAt: now,
     updatedAt: now,
   }

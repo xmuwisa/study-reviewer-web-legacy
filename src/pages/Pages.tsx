@@ -5,7 +5,6 @@ import {
   BookOpenCheck,
   Check,
   CheckCircle2,
-  ChevronsDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -35,6 +34,7 @@ import { CollectionDeleteDialog } from '@/components/study/CollectionDeleteDialo
 import { CollectionFormDialog, type CollectionFormValues } from '@/components/study/CollectionFormDialog'
 import { EntryDeleteDialog } from '@/components/study/EntryDeleteDialog'
 import { EntryFormDialog, type EntryFormValues } from '@/components/study/EntryFormDialog'
+import { FlashcardScrollableContent } from '@/components/study/FlashcardScrollableContent'
 import { StudyDataActionsMenu } from '@/components/study/StudyDataActionsMenu'
 import { PdfExportControl } from '@/components/study/StudyPdfExport'
 import { ContextualDataTransfer, FullBackupControls } from '@/components/study/StudyDataTransfer'
@@ -48,6 +48,7 @@ import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldLeg
 import { Input } from '@/components/ui/input'
 import { Notification } from '@/components/ui/notification'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -461,6 +462,16 @@ function EntryList({
                         </div>
                       ) : rightHidden ? (
                         <span className="text-muted-foreground">{rightLabel} hidden · Reveal</span>
+                      ) : isQuestionCode ? (
+                        <div className="flex w-full flex-col gap-3">
+                          <span className="whitespace-pre-wrap font-mono">{entry.answer}</span>
+                          {entry.explanation && (
+                            <div className="border-t border-border/70 pt-3 text-muted-foreground">
+                              <span className="font-semibold text-foreground">Explanation: </span>
+                              <span className="whitespace-pre-wrap">{entry.explanation}</span>
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <span className={cn('whitespace-pre-wrap', isQuestionCode && 'font-mono')}>{entry.answer}</span>
                       )}
@@ -499,10 +510,71 @@ function getFlashcardText(entry: Entry, side: FlashcardFrontSide) {
   return side === 'left' ? entry.question : entry.answer
 }
 
+function FlashcardTextFace({
+  label,
+  text,
+  isBack,
+  isVisible,
+  isQuestionCode,
+  onKeyDown,
+  preview = false,
+}: {
+  label: string
+  text: string
+  isBack: boolean
+  isVisible: boolean
+  isQuestionCode: boolean
+  onKeyDown?: (event: KeyboardEvent<HTMLDivElement>) => void
+  preview?: boolean
+}) {
+  return (
+    <div
+      {...(preview
+        ? {}
+        : {
+            role: 'button',
+            'aria-label': `${isBack ? 'Show front' : 'Show back'} of ${label.toLowerCase()}`,
+            'aria-keyshortcuts': 'Space ArrowLeft ArrowRight',
+            tabIndex: isVisible ? 0 : -1,
+            onKeyDown,
+          })}
+      aria-hidden={preview || !isVisible}
+      className={cn(
+        'flashcard-face absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card px-6 py-10 text-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-12',
+        isBack ? 'flashcard-face-back' : 'flashcard-face-front',
+      )}
+    >
+      <FlashcardScrollableContent
+        active={!preview && isVisible}
+        ariaLabel={`Scroll to the bottom of the ${label.toLowerCase()}`}
+        className="min-h-full items-center justify-center gap-5"
+      >
+        <span className="text-base font-semibold uppercase tracking-[0.16em] text-primary">{label}</span>
+        <span className={cn('max-w-3xl whitespace-pre-wrap text-2xl font-semibold leading-tight text-foreground sm:text-4xl', isQuestionCode && 'font-mono')}>
+          {text}
+        </span>
+      </FlashcardScrollableContent>
+    </div>
+  )
+}
+
 const FLASHCARD_SWIPE_DURATION = 800
 const FLASHCARD_DRAG_INTENT_THRESHOLD = 12
 const FLASHCARD_CAROUSEL_GAP = 24
 type FlashcardInteractionPhase = 'idle' | 'dragging' | 'flipping' | 'returning' | 'navigating'
+
+function FlashcardCodePanel({ label, code }: { label: string; code: string }) {
+  return (
+    <div
+      className="min-w-0 rounded-xl bg-muted/45 p-4 text-left"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <p className="text-sm font-semibold text-muted-foreground">{label}</p>
+      <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap break-words font-mono text-sm leading-relaxed text-foreground">{code}</pre>
+    </div>
+  )
+}
 
 function FlashcardMode({
   entries,
@@ -522,6 +594,8 @@ function FlashcardMode({
   const [interactionPhase, setInteractionPhaseState] = useState<FlashcardInteractionPhase>('idle')
   const [selectedOptionIndexes, setSelectedOptionIndexes] = useState<Set<number>>(() => new Set())
   const [questionOptionsResult, setQuestionOptionsResult] = useState<boolean | null>(null)
+  const [questionCodeDraft, setQuestionCodeDraft] = useState('')
+  const [questionCodeSubmission, setQuestionCodeSubmission] = useState<string | null>(null)
   const previousEntryIdsRef = useRef(entryIds)
   const currentEntryIdRef = useRef(currentEntryId)
   const interactionPhaseRef = useRef<FlashcardInteractionPhase>('idle')
@@ -532,8 +606,6 @@ function FlashcardMode({
   const navigationFrameRef = useRef<number | null>(null)
   const pendingNavigationIdRef = useRef<string | null>(null)
   const carouselStageRef = useRef<HTMLDivElement | null>(null)
-  const questionOptionsScrollRef = useRef<HTMLDivElement | null>(null)
-  const [showQuestionOptionsScrollHint, setShowQuestionOptionsScrollHint] = useState(false)
   currentEntryIdRef.current = currentEntryId
 
   function setInteractionPhase(nextPhase: FlashcardInteractionPhase) {
@@ -568,6 +640,8 @@ function FlashcardMode({
     setCarouselDirection(null)
     setSelectedOptionIndexes(new Set())
     setQuestionOptionsResult(null)
+    setQuestionCodeDraft('')
+    setQuestionCodeSubmission(null)
     pendingNavigationIdRef.current = null
     clearTransitionFallback()
     clearNavigationFrame()
@@ -591,47 +665,6 @@ function FlashcardMode({
 
   const currentIndex = Math.max(0, orderedEntries.findIndex((entry) => entry.id === currentEntryId))
   const currentEntry = orderedEntries[currentIndex]
-  const currentEntryType = currentEntry?.type
-  const currentQuestionOptionsLength = currentEntry?.options?.length ?? 0
-
-  const updateQuestionOptionsScrollHint = useCallback(() => {
-    const element = questionOptionsScrollRef.current
-    if (!element) {
-      setShowQuestionOptionsScrollHint(false)
-      return
-    }
-
-    const scrollportBottom = element.getBoundingClientRect().bottom
-    const contentBottom = element.lastElementChild?.getBoundingClientRect().bottom ?? scrollportBottom
-    const hasMoreContent = contentBottom > scrollportBottom + 1
-    const isAtBottom = element.scrollTop + element.clientHeight >= element.scrollHeight - 1
-    setShowQuestionOptionsScrollHint(hasMoreContent && !isAtBottom)
-  }, [])
-
-  useEffect(() => {
-    if (currentEntryType !== 'question-options' || !flipped) {
-      setShowQuestionOptionsScrollHint(false)
-      return
-    }
-
-    const element = questionOptionsScrollRef.current
-    if (!element) return
-
-    const update = () => updateQuestionOptionsScrollHint()
-    const frameId = window.requestAnimationFrame(update)
-    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update)
-    resizeObserver?.observe(element)
-    element.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
-
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      resizeObserver?.disconnect()
-      element.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-    }
-  }, [currentEntryType, currentQuestionOptionsLength, currentEntry?.explanation, flipped, questionOptionsResult, updateQuestionOptionsScrollHint])
-
   function moveTo(index: number) {
     const nextEntry = orderedEntries[index]
     if (!nextEntry) return
@@ -642,6 +675,8 @@ function FlashcardMode({
     setCarouselDirection(null)
     setSelectedOptionIndexes(new Set())
     setQuestionOptionsResult(null)
+    setQuestionCodeDraft('')
+    setQuestionCodeSubmission(null)
     setInteractionPhase('idle')
   }
 
@@ -662,6 +697,8 @@ function FlashcardMode({
     setCarouselDirection(null)
     setSelectedOptionIndexes(new Set())
     setQuestionOptionsResult(null)
+    setQuestionCodeDraft('')
+    setQuestionCodeSubmission(null)
     setInteractionPhase('idle')
   }
 
@@ -764,7 +801,7 @@ function FlashcardMode({
     setInteractionPhase('flipping')
   }
 
-  function handleCardKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+  function handleCardKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === ' ' || event.key === 'Spacebar') {
       event.preventDefault()
       flipCard()
@@ -936,16 +973,10 @@ function FlashcardMode({
 
     return (
       <div
-        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-64 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-16 sm:py-8"
+        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-8"
         aria-hidden={!isVisible}
       >
-        <div
-          ref={questionOptionsScrollRef}
-          className={cn(
-            'flex min-h-0 w-full flex-1 flex-col gap-4 overflow-y-auto',
-            showQuestionOptionsScrollHint ? 'pb-14' : 'pb-4',
-          )}
-        >
+        <FlashcardScrollableContent active={isVisible} ariaLabel="Scroll to the bottom of the options" className="gap-4">
           <span className="text-center text-base font-semibold uppercase tracking-[0.16em] text-primary">Options</span>
           <FieldSet
             className="w-full gap-3"
@@ -1006,23 +1037,86 @@ function FlashcardMode({
               {currentEntry.explanation}
             </p>
           )}
-        </div>
-        {showQuestionOptionsScrollHint && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="flashcard-scroll-hint absolute right-4 bottom-6 bg-transparent text-foreground shadow-none hover:bg-transparent hover:text-foreground"
-            aria-label="Scroll to the bottom of the options"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation()
-              questionOptionsScrollRef.current?.scrollTo({ top: questionOptionsScrollRef.current.scrollHeight, behavior: 'smooth' })
-            }}
-          >
-            <ChevronsDown aria-hidden="true" data-icon="inline-start" className="size-7" />
-          </Button>
-        )}
+        </FlashcardScrollableContent>
+      </div>
+    )
+  }
+
+  function renderQuestionCodeFace(isVisible: boolean) {
+    function handleCodeDraftKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+      event.stopPropagation()
+      if (event.key !== 'Tab') return
+
+      event.preventDefault()
+      const target = event.currentTarget
+      const start = target.selectionStart
+      const end = target.selectionEnd
+      const nextValue = `${target.value.slice(0, start)}\t${target.value.slice(end)}`
+      setQuestionCodeDraft(nextValue)
+      requestAnimationFrame(() => {
+        target.selectionStart = start + 1
+        target.selectionEnd = start + 1
+      })
+    }
+
+    function submitCode(event: MouseEvent<HTMLButtonElement>) {
+      event.stopPropagation()
+      if (!isVisible || questionCodeDraft.trim().length === 0 || questionCodeSubmission !== null) return
+      setQuestionCodeSubmission(questionCodeDraft)
+    }
+
+    const isSubmitted = questionCodeSubmission !== null
+
+    return (
+      <div
+        role="button"
+        aria-label="Show front of code"
+        aria-keyshortcuts="Space ArrowLeft ArrowRight"
+        tabIndex={isVisible ? 0 : -1}
+        aria-hidden={!isVisible}
+        className="flashcard-face flashcard-face-back absolute inset-0 flex min-h-80 w-full flex-col overflow-hidden rounded-2xl bg-card px-7 py-6 text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-96 sm:px-16 sm:py-8"
+        onKeyDown={handleCardKeyDown}
+      >
+        <FlashcardScrollableContent active={isVisible} ariaLabel="Scroll to the bottom of the code" className="gap-4">
+          {!isSubmitted ? (
+            <>
+              <span className="text-center text-base font-semibold uppercase tracking-[0.16em] text-primary">Code</span>
+              <Textarea
+                aria-label="Your code"
+                className="min-h-48 resize-none border-0 bg-muted/45 font-mono text-sm leading-relaxed"
+                spellCheck={false}
+                value={questionCodeDraft}
+                onChange={(event) => setQuestionCodeDraft(event.target.value)}
+                onKeyDown={handleCodeDraftKeyDown}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+                placeholder="Write your code"
+              />
+              <Button
+                type="button"
+                className="w-full"
+                disabled={!isVisible || questionCodeDraft.trim().length === 0 || interactionPhase !== 'idle'}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={submitCode}
+              >
+                Enter
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="grid w-full gap-3 sm:grid-cols-2">
+                <FlashcardCodePanel label="Your Code" code={questionCodeSubmission} />
+                <FlashcardCodePanel label="Original Code" code={currentEntry.answer} />
+              </div>
+              {currentEntry.explanation && (
+                <div className="w-full border-t border-border/70 pt-3 text-muted-foreground">
+                  <span className="font-semibold text-foreground">Explanation: </span>
+                  <span className="whitespace-pre-wrap">{currentEntry.explanation}</span>
+                </div>
+              )}
+            </>
+          )}
+        </FlashcardScrollableContent>
       </div>
     )
   }
@@ -1031,24 +1125,9 @@ function FlashcardMode({
     const isVisible = isBack ? flipped : !flipped
 
     if (isBack && currentEntry.type === 'question-options') return renderQuestionOptionsFace(isVisible)
+    if (isBack && currentEntry.type === 'question-code') return renderQuestionCodeFace(isVisible)
 
-    return (
-      <button
-        type="button"
-        className={cn(
-          'flashcard-face absolute inset-0 flex min-h-64 w-full flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-10 text-center focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-80 sm:px-16 sm:py-12',
-          isBack ? 'flashcard-face-back' : 'flashcard-face-front',
-        )}
-        aria-hidden={!isVisible}
-        aria-label={`${isBack ? 'Show front' : 'Show back'} of ${label.toLowerCase()}`}
-        aria-keyshortcuts="Space ArrowLeft ArrowRight"
-        tabIndex={isVisible ? 0 : -1}
-        onKeyDown={handleCardKeyDown}
-      >
-        <span className="text-base font-semibold uppercase tracking-[0.16em] text-primary">{label}</span>
-        <span className="max-w-3xl whitespace-pre-wrap text-2xl font-semibold leading-tight text-foreground sm:text-4xl">{text}</span>
-      </button>
-    )
+    return <FlashcardTextFace label={label} text={text} isBack={isBack} isVisible={isVisible} isQuestionCode={currentEntry.type === 'question-code'} onKeyDown={handleCardKeyDown} />
   }
 
   function handleCardClick(event: MouseEvent<HTMLDivElement>) {
@@ -1065,7 +1144,7 @@ function FlashcardMode({
     <div className="flex flex-col gap-6">
       <div
         ref={carouselStageRef}
-        className="flashcard-stage relative min-h-64 touch-pan-y sm:min-h-80"
+        className="flashcard-stage relative min-h-80 touch-pan-y sm:min-h-96"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
@@ -1089,13 +1168,19 @@ function FlashcardMode({
             <div
               key={`preview-${previewEntry.id}`}
               aria-hidden="true"
-              className="flashcard-card-shell flashcard-depth flashcard-drag-surface pointer-events-none absolute inset-x-0 top-0 flex select-none flex-col items-center justify-center gap-5 rounded-2xl bg-card px-6 py-10 text-center sm:px-16 sm:py-12"
+              className="flashcard-card-shell flashcard-depth flashcard-drag-surface pointer-events-none absolute inset-x-0 top-0 select-none rounded-2xl bg-card"
               data-interaction-phase={interactionPhase}
               style={{ transform: `translate3d(${previewX}px, 0, 0)` }}
               onTransitionEnd={handleCardTransitionEnd}
             >
-              <span className="text-base font-semibold uppercase tracking-[0.16em] text-primary">{previewLabel}</span>
-              <span className="max-w-3xl whitespace-pre-wrap text-2xl font-semibold leading-tight text-foreground sm:text-4xl">{previewText}</span>
+              <FlashcardTextFace
+                label={previewLabel}
+                text={previewText}
+                isBack={false}
+                isVisible
+                isQuestionCode={previewEntry.type === 'question-code'}
+                preview
+              />
             </div>
           )}
         </div>
